@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        header {
+            background: linear-gradient(to right, #2c3e50, #4a6491);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .search-box {
+            position: relative;
+            width: 300px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border: 1px solid #ced4da;
+            border-radius: 50px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #4a6491;
+            box-shadow: 0 0 0 3px rgba(74, 100, 145, 0.2);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+
+        .sort-options select {
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 50px;
+            font-size: 1rem;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sort-options select:focus {
+            outline: none;
+            border-color: #4a6491;
+            box-shadow: 0 0 0 3px rgba(74, 100, 145, 0.2);
+        }
+
+        .leaderboard {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background-color: #4a6491;
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            user-select: none;
+        }
+
+        th:hover {
+            background-color: #3a5479;
+        }
+
+        th i {
+            margin-left: 5px;
+            font-size: 0.8rem;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e9ecef;
+            transition: background-color 0.3s;
+        }
+
+        tbody tr:hover {
+            background-color: #f1f3f5;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        tbody tr:nth-child(even):hover {
+            background-color: #e9ecef;
+        }
+
+        td {
+            padding: 15px;
+        }
+
+        .rank {
+            font-weight: bold;
+            text-align: center;
+            width: 80px;
+        }
+
+        .player {
+            display: flex;
+            align-items: center;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #4a6491;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .name {
+            font-weight: 600;
+        }
+
+        .score {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .medal {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .gold {
+            background-color: #ffd700;
+            color: #8b7500;
+        }
+
+        .silver {
+            background-color: #c0c0c0;
+            color: #696969;
+        }
+
+        .bronze {
+            background-color: #cd7f32;
+            color: #5a4326;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(to right, #4a6491, #6a84b1);
+            border-radius: 4px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            th, td {
+                padding: 10px 8px;
+            }
+            
+            .avatar {
+                width: 32px;
+                height: 32px;
+                margin-right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Leaderboard</h1>
+            <p class="subtitle">Top performers ranked by score</p>
+        </header>
+        
+        <div class="controls">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search players...">
+            </div>
+            
+            <div class="sort-options">
+                <select id="sortSelect">
+                    <option value="rank">Sort by: Rank</option>
+                    <option value="name">Sort by: Name</option>
+                    <option value="score">Sort by: Score</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="leaderboard">
+            <table>
+                <thead>
+                    <tr>
+                        <th data-sort="rank">Rank <i>▼</i></th>
+                        <th data-sort="name">Player <i>▼</i></th>
+                        <th data-sort="score">Score <i>▼</i></th>
+                        <th data-sort="progress">Progress <i>▼</i></th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <!-- Leaderboard data will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <footer>
+        <p>Leaderboard &copy; 2023 | Updated in real-time</p>
+    </footer>
+
+    <script>
+        // Sample leaderboard data
+        const leaderboardData = [
+            { id: 1, name: "Alex Johnson", score: 9850, progress: 98 },
+            { id: 2, name: "Sam Wilson", score: 8720, progress: 87 },
+            { id: 3, name: "Taylor Swift", score: 7650, progress: 76 },
+            { id: 4, name: "Jordan Lee", score: 7430, progress: 74 },
+            { id: 5, name: "Casey Kim", score: 6980, progress: 69 },
+            { id: 6, name: "Morgan Reed", score: 6540, progress: 65 },
+            { id: 7, name: "Riley Smith", score: 6210, progress: 62 },
+            { id: 8, name: "Avery Brown", score: 5870, progress: 58 },
+            { id: 9, name: "Quinn Davis", score: 5430, progress: 54 },
+            { id: 10, name: "Skyler White", score: 5120, progress: 51 }
+        ];
+
+        // DOM elements
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const tableHeaders = document.querySelectorAll('th[data-sort]');
+
+        // Initialize the leaderboard
+        function initLeaderboard() {
+            renderLeaderboard(leaderboardData);
+            setupEventListeners();
+        }
+
+        // Render the leaderboard
+        function renderLeaderboard(data) {
+            leaderboardBody.innerHTML = '';
+            
+            data.forEach((player, index) => {
+                const row = document.createElement('tr');
+                
+                // Determine medal for top 3
+                let medalHTML = '';
+                if (index === 0) {
+                    medalHTML = '<span class="medal gold">1</span>';
+                } else if (index === 1) {
+                    medalHTML = '<span class="medal silver">2</span>';
+                } else if (index === 2) {
+                    medalHTML = '<span class="medal bronze">3</span>';
+                } else {
+                    medalHTML = `<span class="rank">${index + 1}</span>`;
+                }
+                
+                // Get initials for avatar
+                const initials = player.name.split(' ').map(n => n[0]).join('');
+                
+                row.innerHTML = `
+                    <td class="rank">${medalHTML}</td>
+                    <td>
+                        <div class="player">
+                            <div class="avatar">${initials}</div>
+                            <div class="name">${player.name}</div>
+                        </div>
+                    </td>
+                    <td class="score">${player.score.toLocaleString()}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: ${player.progress}%"></div>
+                        </div>
+                        <span style="font-size: 0.8rem; margin-left: 5px;">${player.progress}%</span>
+                    </td>
+                `;
+                
+                leaderboardBody.appendChild(row);
+            });
+        }
+
+        // Sort the leaderboard
+        function sortLeaderboard(sortBy, ascending = true) {
+            const sortedData = [...leaderboardData];
+            
+            sortedData.sort((a, b) => {
+                if (sortBy === 'name') {
+                    return ascending ? 
+                        a.name.localeCompare(b.name) : 
+                        b.name.localeCompare(a.name);
+                } else if (sortBy === 'score') {
+                    return ascending ? a.score - b.score : b.score - a.score;
+                } else if (sortBy === 'progress') {
+                    return ascending ? a.progress - b.progress : b.progress - a.progress;
+                } else {
+                    // Default to rank
+                    return ascending ? a.id - b.id : b.id - a.id;
+                }
+            });
+            
+            renderLeaderboard(sortedData);
+        }
+
+        // Filter the leaderboard based on search input
+        function filterLeaderboard() {
+            const searchTerm = searchInput.value.toLowerCase();
+            
+            if (searchTerm === '') {
+                renderLeaderboard(leaderboardData);
+                return;
+            }
+            
+            const filteredData = leaderboardData.filter(player => 
+                player.name.toLowerCase().includes(searchTerm)
+            );
+            
+            renderLeaderboard(filteredData);
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Search functionality
+            searchInput.addEventListener('input', filterLeaderboard);
+            
+            // Sort functionality
+            sortSelect.addEventListener('change', (e) => {
+                sortLeaderboard(e.target.value);
+            });
+            
+            // Table header sorting
+            tableHeaders.forEach(header => {
+                header.addEventListener('click', () => {
+                    const sortBy = header.getAttribute('data-sort');
+                    sortLeaderboard(sortBy);
+                });
+            });
+        }
+
+        // Initialize the leaderboard when the page loads
+        document.addEventListener('DOMContentLoaded', initLeaderboard);
+    </script>
+</body>
+</html>
