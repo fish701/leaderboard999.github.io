@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Leaderboard</title>
+    
+    <!-- Add Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
     <style>
         * {
             margin: 0;
@@ -534,6 +539,21 @@
     </div>
 
     <script>
+        // Firebase configuration - REPLACE WITH YOUR ACTUAL FIREBASE CONFIG
+        const firebaseConfig = {
+            apiKey: "your-api-key",
+            authDomain: "your-project-id.firebaseapp.com",
+            databaseURL: "https://your-project-id-default-rtdb.firebaseio.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "your-sender-id",
+            appId: "your-app-id"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
         // Password for authentication
         const correctPassword = "(67a=72b*3x^2/areug45uay";
 
@@ -576,37 +596,60 @@
             return { level, progress, scoreToNextLevel: baseScore - score };
         }
 
-        // Shared data storage using localStorage (simulates shared database)
-        function loadLeaderboardData() {
-            const savedData = localStorage.getItem('sharedLeaderboardData');
-            if (savedData) {
-                return JSON.parse(savedData);
-            } else {
-                // Default data if nothing is saved
-                return [
-                    { id: 1, name: "Alex Johnson", score: 9850 },
-                    { id: 2, name: "Sam Wilson", score: 8720 },
-                    { id: 3, name: "Taylor Swift", score: 7650 },
-                    { id: 4, name: "Jordan Lee", score: 7430 },
-                    { id: 5, name: "Casey Kim", score: 6980 },
-                    { id: 6, name: "Morgan Reed", score: 6540 },
-                    { id: 7, name: "Riley Smith", score: 6210 },
-                    { id: 8, name: "Avery Brown", score: 5870 },
-                    { id: 9, name: "Quinn Davis", score: 5430 },
-                    { id: 10, name: "Skyler White", score: 5120 }
-                ];
-            }
+        // Load leaderboard data from Firebase
+        function loadLeaderboardDataFromFirebase(callback) {
+            const leaderboardRef = database.ref('leaderboard');
+            
+            // Set up real-time listener
+            leaderboardRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    // Convert Firebase object to array
+                    const leaderboardArray = Object.keys(data).map(key => ({
+                        id: key,
+                        ...data[key]
+                    }));
+                    callback(leaderboardArray);
+                } else {
+                    // If no data in Firebase, use default data
+                    const defaultData = [
+                        { id: "1", name: "Alex Johnson", score: 9850 },
+                        { id: "2", name: "Sam Wilson", score: 8720 },
+                        { id: "3", name: "Taylor Swift", score: 7650 },
+                        { id: "4", name: "Jordan Lee", score: 7430 },
+                        { id: "5", name: "Casey Kim", score: 6980 },
+                        { id: "6", name: "Morgan Reed", score: 6540 },
+                        { id: "7", name: "Riley Smith", score: 6210 },
+                        { id: "8", name: "Avery Brown", score: 5870 },
+                        { id: "9", name: "Quinn Davis", score: 5430 },
+                        { id: "10", name: "Skyler White", score: 5120 }
+                    ];
+                    
+                    // Save default data to Firebase
+                    defaultData.forEach(player => {
+                        leaderboardRef.child(player.id).set(player);
+                    });
+                    
+                    callback(defaultData);
+                }
+            });
         }
 
-        // Save leaderboard data to shared storage
-        function saveLeaderboardData(data) {
-            localStorage.setItem('sharedLeaderboardData', JSON.stringify(data));
-            // Dispatch event to notify other tabs/windows of the change
-            window.dispatchEvent(new Event('leaderboardUpdated'));
+        // Save leaderboard data to Firebase
+        function saveLeaderboardDataToFirebase(data) {
+            const leaderboardRef = database.ref('leaderboard');
+            
+            // Clear existing data
+            leaderboardRef.remove().then(() => {
+                // Save new data
+                data.forEach(player => {
+                    leaderboardRef.child(player.id).set({
+                        name: player.name,
+                        score: player.score
+                    });
+                });
+            });
         }
-
-        // Initialize leaderboard data
-        let leaderboardData = loadLeaderboardData();
 
         // Sort data by score (highest first)
         function sortDataByScore(data) {
@@ -615,26 +658,17 @@
 
         // Initialize the leaderboard
         function initLeaderboard() {
-            // Sort data by score before rendering
-            leaderboardData = sortDataByScore(leaderboardData);
-            renderLeaderboard(leaderboardData);
-            setupEventListeners();
-            
-            // Listen for changes from other tabs/windows
-            window.addEventListener('leaderboardUpdated', () => {
-                leaderboardData = sortDataByScore(loadLeaderboardData());
+            // Load data from Firebase with real-time updates
+            loadLeaderboardDataFromFirebase((data) => {
+                leaderboardData = sortDataByScore(data);
                 renderLeaderboard(leaderboardData);
             });
             
-            // Check for updates periodically (every 5 seconds)
-            setInterval(() => {
-                const currentData = loadLeaderboardData();
-                if (JSON.stringify(sortDataByScore(currentData)) !== JSON.stringify(leaderboardData)) {
-                    leaderboardData = sortDataByScore(currentData);
-                    renderLeaderboard(leaderboardData);
-                }
-            }, 5000);
+            setupEventListeners();
         }
+
+        // Global variable to store leaderboard data
+        let leaderboardData = [];
 
         // Render the leaderboard
         function renderLeaderboard(data) {
@@ -716,14 +750,14 @@
             // Add event listeners to edit and delete buttons
             document.querySelectorAll('.edit-player').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const playerId = parseInt(e.target.getAttribute('data-id'));
+                    const playerId = e.target.getAttribute('data-id');
                     editPlayer(playerId);
                 });
             });
             
             document.querySelectorAll('.delete-player').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const playerId = parseInt(e.target.getAttribute('data-id'));
+                    const playerId = e.target.getAttribute('data-id');
                     deletePlayer(playerId);
                 });
             });
@@ -783,8 +817,8 @@
 
         // Save changes and close modal
         function saveChanges() {
-            // Save to shared storage
-            saveLeaderboardData(leaderboardData);
+            // Save to Firebase
+            saveLeaderboardDataToFirebase(leaderboardData);
             closeEditModal();
         }
 
@@ -809,8 +843,7 @@
             }
             
             // Generate a new ID
-            const newId = leaderboardData.length > 0 ? 
-                Math.max(...leaderboardData.map(p => p.id)) + 1 : 1;
+            const newId = Date.now().toString(); // Use timestamp as ID
             
             // Add the new player
             leaderboardData.push({
@@ -832,8 +865,8 @@
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
             
-            // Save changes to shared storage
-            saveLeaderboardData(leaderboardData);
+            // Save changes to Firebase
+            saveLeaderboardDataToFirebase(leaderboardData);
         }
 
         // Edit a player
@@ -868,8 +901,8 @@
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
             
-            // Save changes to shared storage
-            saveLeaderboardData(leaderboardData);
+            // Save changes to Firebase
+            saveLeaderboardDataToFirebase(leaderboardData);
         }
 
         // Delete a player
@@ -895,8 +928,8 @@
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
             
-            // Save changes to shared storage
-            saveLeaderboardData(leaderboardData);
+            // Save changes to Firebase
+            saveLeaderboardDataToFirebase(leaderboardData);
         }
 
         // Set up event listeners
@@ -932,3 +965,5 @@
     </script>
 </body>
 </html>
+
+
