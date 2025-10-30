@@ -60,7 +60,8 @@
 
         .search-box {
             position: relative;
-            width: 300px;
+            width: 100%;
+            max-width: 400px;
         }
 
         .search-box input {
@@ -86,22 +87,6 @@
             color: #6c757d;
         }
 
-        .sort-options select {
-            padding: 10px 15px;
-            border: 1px solid #ced4da;
-            border-radius: 50px;
-            font-size: 1rem;
-            background-color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .sort-options select:focus {
-            outline: none;
-            border-color: #4a6491;
-            box-shadow: 0 0 0 3px rgba(74, 100, 145, 0.2);
-        }
-
         .leaderboard {
             overflow-x: auto;
         }
@@ -120,18 +105,7 @@
             padding: 15px;
             text-align: left;
             font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.3s;
             user-select: none;
-        }
-
-        th:hover {
-            background-color: #3a5479;
-        }
-
-        th i {
-            margin-left: 5px;
-            font-size: 0.8rem;
         }
 
         tbody tr {
@@ -491,26 +465,17 @@
                 <span class="search-icon">🔍</span>
                 <input type="text" id="searchInput" placeholder="Search players...">
             </div>
-            
-            <div class="sort-options">
-                <select id="sortSelect">
-                    <option value="rank">Sort by: Rank</option>
-                    <option value="level">Sort by: Level</option>
-                    <option value="name">Sort by: Name</option>
-                    <option value="score">Sort by: Score</option>
-                </select>
-            </div>
         </div>
         
         <div class="leaderboard">
             <table>
                 <thead>
                     <tr>
-                        <th data-sort="rank">Rank <i>▼</i></th>
-                        <th data-sort="level">Level <i>▼</i></th>
-                        <th data-sort="name">Name <i>▼</i></th>
-                        <th data-sort="score">Score <i>▼</i></th>
-                        <th data-sort="progress">Progress <i>▼</i></th>
+                        <th>Rank</th>
+                        <th>Level</th>
+                        <th>Name</th>
+                        <th>Score</th>
+                        <th>Progress</th>
                     </tr>
                 </thead>
                 <tbody id="leaderboardBody">
@@ -575,8 +540,6 @@
         // DOM elements
         const leaderboardBody = document.getElementById('leaderboardBody');
         const searchInput = document.getElementById('searchInput');
-        const sortSelect = document.getElementById('sortSelect');
-        const tableHeaders = document.querySelectorAll('th[data-sort]');
         const changeLink = document.getElementById('changeLink');
         const editModal = document.getElementById('editModal');
         const closeModal = document.getElementById('closeModal');
@@ -613,9 +576,9 @@
             return { level, progress, scoreToNextLevel: baseScore - score };
         }
 
-        // Load leaderboard data from localStorage or use default data
+        // Shared data storage using localStorage (simulates shared database)
         function loadLeaderboardData() {
-            const savedData = localStorage.getItem('leaderboardData');
+            const savedData = localStorage.getItem('sharedLeaderboardData');
             if (savedData) {
                 return JSON.parse(savedData);
             } else {
@@ -635,9 +598,11 @@
             }
         }
 
-        // Save leaderboard data to localStorage
+        // Save leaderboard data to shared storage
         function saveLeaderboardData(data) {
-            localStorage.setItem('leaderboardData', JSON.stringify(data));
+            localStorage.setItem('sharedLeaderboardData', JSON.stringify(data));
+            // Dispatch event to notify other tabs/windows of the change
+            window.dispatchEvent(new Event('leaderboardUpdated'));
         }
 
         // Initialize leaderboard data
@@ -654,6 +619,21 @@
             leaderboardData = sortDataByScore(leaderboardData);
             renderLeaderboard(leaderboardData);
             setupEventListeners();
+            
+            // Listen for changes from other tabs/windows
+            window.addEventListener('leaderboardUpdated', () => {
+                leaderboardData = sortDataByScore(loadLeaderboardData());
+                renderLeaderboard(leaderboardData);
+            });
+            
+            // Check for updates periodically (every 5 seconds)
+            setInterval(() => {
+                const currentData = loadLeaderboardData();
+                if (JSON.stringify(sortDataByScore(currentData)) !== JSON.stringify(leaderboardData)) {
+                    leaderboardData = sortDataByScore(currentData);
+                    renderLeaderboard(leaderboardData);
+                }
+            }, 5000);
         }
 
         // Render the leaderboard
@@ -749,32 +729,6 @@
             });
         }
 
-        // Sort the leaderboard
-        function sortLeaderboard(sortBy, ascending = true) {
-            const sortedData = [...leaderboardData];
-            
-            sortedData.sort((a, b) => {
-                if (sortBy === 'name') {
-                    return ascending ? 
-                        a.name.localeCompare(b.name) : 
-                        b.name.localeCompare(a.name);
-                } else if (sortBy === 'score') {
-                    // Higher scores should be first (descending order by default)
-                    return ascending ? a.score - b.score : b.score - a.score;
-                } else if (sortBy === 'level') {
-                    const aLevel = calculateLevelAndProgress(a.score).level;
-                    const bLevel = calculateLevelAndProgress(b.score).level;
-                    // Higher levels should be first (descending order by default)
-                    return ascending ? aLevel - bLevel : bLevel - aLevel;
-                } else {
-                    // Default to rank (higher scores = lower rank numbers)
-                    return ascending ? a.id - b.id : b.id - a.id;
-                }
-            });
-            
-            renderLeaderboard(sortedData);
-        }
-
         // Filter the leaderboard based on search input
         function filterLeaderboard() {
             const searchTerm = searchInput.value.toLowerCase();
@@ -829,7 +783,7 @@
 
         // Save changes and close modal
         function saveChanges() {
-            // Save to localStorage
+            // Save to shared storage
             saveLeaderboardData(leaderboardData);
             closeEditModal();
         }
@@ -878,7 +832,7 @@
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
             
-            // Save changes
+            // Save changes to shared storage
             saveLeaderboardData(leaderboardData);
         }
 
@@ -914,7 +868,7 @@
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
             
-            // Save changes
+            // Save changes to shared storage
             saveLeaderboardData(leaderboardData);
         }
 
@@ -941,7 +895,7 @@
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
             
-            // Save changes
+            // Save changes to shared storage
             saveLeaderboardData(leaderboardData);
         }
 
@@ -949,19 +903,6 @@
         function setupEventListeners() {
             // Search functionality
             searchInput.addEventListener('input', filterLeaderboard);
-            
-            // Sort functionality
-            sortSelect.addEventListener('change', (e) => {
-                sortLeaderboard(e.target.value);
-            });
-            
-            // Table header sorting
-            tableHeaders.forEach(header => {
-                header.addEventListener('click', () => {
-                    const sortBy = header.getAttribute('data-sort');
-                    sortLeaderboard(sortBy);
-                });
-            });
             
             // Modal functionality
             changeLink.addEventListener('click', openEditModal);
@@ -991,4 +932,3 @@
     </script>
 </body>
 </html>
-
