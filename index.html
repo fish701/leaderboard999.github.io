@@ -23,7 +23,7 @@
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             width: 100%;
             background-color: rgba(255, 255, 255, 0.95);
             border-radius: 12px;
@@ -159,6 +159,13 @@
             font-weight: bold;
             text-align: center;
             width: 80px;
+        }
+
+        .level {
+            font-weight: bold;
+            text-align: center;
+            width: 80px;
+            color: #4a6491;
         }
 
         .player {
@@ -429,11 +436,6 @@
             border-left: 4px solid #4a6491;
         }
 
-        .password-section h3 {
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-
         .error-message {
             color: #dc3545;
             font-size: 0.9rem;
@@ -493,6 +495,7 @@
             <div class="sort-options">
                 <select id="sortSelect">
                     <option value="rank">Sort by: Rank</option>
+                    <option value="level">Sort by: Level</option>
                     <option value="name">Sort by: Name</option>
                     <option value="score">Sort by: Score</option>
                 </select>
@@ -504,7 +507,8 @@
                 <thead>
                     <tr>
                         <th data-sort="rank">Rank <i>▼</i></th>
-                        <th data-sort="name">Player <i>▼</i></th>
+                        <th data-sort="level">Level <i>▼</i></th>
+                        <th data-sort="name">Name <i>▼</i></th>
                         <th data-sort="score">Score <i>▼</i></th>
                         <th data-sort="progress">Progress <i>▼</i></th>
                     </tr>
@@ -546,11 +550,7 @@
                     </div>
                     <div class="form-group">
                         <label for="newPlayerScore">Score</label>
-                        <input type="number" id="newPlayerScore" placeholder="Enter score" min="0" max="10000">
-                    </div>
-                    <div class="form-group">
-                        <label for="newPlayerProgress">Progress (%)</label>
-                        <input type="number" id="newPlayerProgress" placeholder="Enter progress" min="0" max="100">
+                        <input type="number" id="newPlayerScore" placeholder="Enter score" min="0" max="100000">
                     </div>
                     <button class="btn btn-primary" id="addPlayerBtn">Add Player</button>
                     
@@ -586,7 +586,6 @@
         const addPlayerBtn = document.getElementById('addPlayerBtn');
         const newPlayerName = document.getElementById('newPlayerName');
         const newPlayerScore = document.getElementById('newPlayerScore');
-        const newPlayerProgress = document.getElementById('newPlayerProgress');
         const passwordInput = document.getElementById('passwordInput');
         const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
         const passwordError = document.getElementById('passwordError');
@@ -594,6 +593,25 @@
 
         // Track authentication state
         let isAuthenticated = false;
+
+        // Level progression system
+        function calculateLevelAndProgress(score) {
+            let level = 1;
+            let progress = 0;
+            let baseScore = 100; // Base score needed for level 1
+            
+            // Calculate level based on score
+            while (score >= baseScore) {
+                score -= baseScore;
+                level++;
+                baseScore *= 1.25; // Each level requires 1.25x more score
+            }
+            
+            // Calculate progress percentage for current level
+            progress = Math.min(100, Math.round((score / baseScore) * 100));
+            
+            return { level, progress, scoreToNextLevel: baseScore - score };
+        }
 
         // Load leaderboard data from localStorage or use default data
         function loadLeaderboardData() {
@@ -603,16 +621,16 @@
             } else {
                 // Default data if nothing is saved
                 return [
-                    { id: 1, name: "Alex Johnson", score: 9850, progress: 98 },
-                    { id: 2, name: "Sam Wilson", score: 8720, progress: 87 },
-                    { id: 3, name: "Taylor Swift", score: 7650, progress: 76 },
-                    { id: 4, name: "Jordan Lee", score: 7430, progress: 74 },
-                    { id: 5, name: "Casey Kim", score: 6980, progress: 69 },
-                    { id: 6, name: "Morgan Reed", score: 6540, progress: 65 },
-                    { id: 7, name: "Riley Smith", score: 6210, progress: 62 },
-                    { id: 8, name: "Avery Brown", score: 5870, progress: 58 },
-                    { id: 9, name: "Quinn Davis", score: 5430, progress: 54 },
-                    { id: 10, name: "Skyler White", score: 5120, progress: 51 }
+                    { id: 1, name: "Alex Johnson", score: 9850 },
+                    { id: 2, name: "Sam Wilson", score: 8720 },
+                    { id: 3, name: "Taylor Swift", score: 7650 },
+                    { id: 4, name: "Jordan Lee", score: 7430 },
+                    { id: 5, name: "Casey Kim", score: 6980 },
+                    { id: 6, name: "Morgan Reed", score: 6540 },
+                    { id: 7, name: "Riley Smith", score: 6210 },
+                    { id: 8, name: "Avery Brown", score: 5870 },
+                    { id: 9, name: "Quinn Davis", score: 5430 },
+                    { id: 10, name: "Skyler White", score: 5120 }
                 ];
             }
         }
@@ -625,8 +643,15 @@
         // Initialize leaderboard data
         let leaderboardData = loadLeaderboardData();
 
+        // Sort data by score (highest first)
+        function sortDataByScore(data) {
+            return [...data].sort((a, b) => b.score - a.score);
+        }
+
         // Initialize the leaderboard
         function initLeaderboard() {
+            // Sort data by score before rendering
+            leaderboardData = sortDataByScore(leaderboardData);
             renderLeaderboard(leaderboardData);
             setupEventListeners();
         }
@@ -637,6 +662,9 @@
             
             data.forEach((player, index) => {
                 const row = document.createElement('tr');
+                
+                // Calculate level and progress
+                const { level, progress } = calculateLevelAndProgress(player.score);
                 
                 // Determine medal for top 3
                 let medalHTML = '';
@@ -655,6 +683,7 @@
                 
                 row.innerHTML = `
                     <td class="rank">${medalHTML}</td>
+                    <td class="level">${level}</td>
                     <td>
                         <div class="player">
                             <div class="avatar">${initials}</div>
@@ -664,9 +693,9 @@
                     <td class="score">${player.score.toLocaleString()}</td>
                     <td>
                         <div class="progress-bar">
-                            <div class="progress" style="width: ${player.progress}%"></div>
+                            <div class="progress" style="width: ${progress}%"></div>
                         </div>
-                        <span style="font-size: 0.8rem; margin-left: 5px;">${player.progress}%</span>
+                        <span style="font-size: 0.8rem; margin-left: 5px;">${progress}%</span>
                     </td>
                 `;
                 
@@ -682,13 +711,16 @@
                 const playerItem = document.createElement('div');
                 playerItem.className = 'player-item';
                 
+                // Calculate level and progress
+                const { level, progress } = calculateLevelAndProgress(player.score);
+                
                 playerItem.innerHTML = `
                     <div class="player-info">
                         <div class="avatar" style="margin-right: 10px;">${player.name.split(' ').map(n => n[0]).join('')}</div>
                         <div>
                             <div class="name">${player.name}</div>
                             <div style="font-size: 0.8rem; color: #6c757d;">
-                                Score: ${player.score} | Progress: ${player.progress}%
+                                Score: ${player.score} | Level: ${level} | Progress: ${progress}%
                             </div>
                         </div>
                     </div>
@@ -727,11 +759,15 @@
                         a.name.localeCompare(b.name) : 
                         b.name.localeCompare(a.name);
                 } else if (sortBy === 'score') {
+                    // Higher scores should be first (descending order by default)
                     return ascending ? a.score - b.score : b.score - a.score;
-                } else if (sortBy === 'progress') {
-                    return ascending ? a.progress - b.progress : b.progress - a.progress;
+                } else if (sortBy === 'level') {
+                    const aLevel = calculateLevelAndProgress(a.score).level;
+                    const bLevel = calculateLevelAndProgress(b.score).level;
+                    // Higher levels should be first (descending order by default)
+                    return ascending ? aLevel - bLevel : bLevel - aLevel;
                 } else {
-                    // Default to rank
+                    // Default to rank (higher scores = lower rank numbers)
                     return ascending ? a.id - b.id : b.id - a.id;
                 }
             });
@@ -789,7 +825,6 @@
             // Reset form fields
             newPlayerName.value = '';
             newPlayerScore.value = '';
-            newPlayerProgress.value = '';
         }
 
         // Save changes and close modal
@@ -808,20 +843,14 @@
             
             const name = newPlayerName.value.trim();
             const score = parseInt(newPlayerScore.value);
-            const progress = parseInt(newPlayerProgress.value);
             
-            if (!name || isNaN(score) || isNaN(progress)) {
+            if (!name || isNaN(score)) {
                 alert('Please fill in all fields with valid values');
                 return;
             }
             
-            if (score < 0 || score > 10000) {
-                alert('Score must be between 0 and 10000');
-                return;
-            }
-            
-            if (progress < 0 || progress > 100) {
-                alert('Progress must be between 0 and 100');
+            if (score < 0 || score > 100000) {
+                alert('Score must be between 0 and 100000');
                 return;
             }
             
@@ -833,14 +862,15 @@
             leaderboardData.push({
                 id: newId,
                 name: name,
-                score: score,
-                progress: progress
+                score: score
             });
+            
+            // Sort by score (highest first)
+            leaderboardData = sortDataByScore(leaderboardData);
             
             // Reset form fields
             newPlayerName.value = '';
             newPlayerScore.value = '';
-            newPlayerProgress.value = '';
             
             // Update the player list
             renderPlayerList();
@@ -866,21 +896,17 @@
             if (newName === null) return; // User cancelled
             
             const newScore = parseInt(prompt('Enter new score:', player.score));
-            if (isNaN(newScore) || newScore < 0 || newScore > 10000) {
-                alert('Please enter a valid score between 0 and 10000');
-                return;
-            }
-            
-            const newProgress = parseInt(prompt('Enter new progress:', player.progress));
-            if (isNaN(newProgress) || newProgress < 0 || newProgress > 100) {
-                alert('Please enter a valid progress between 0 and 100');
+            if (isNaN(newScore) || newScore < 0 || newScore > 100000) {
+                alert('Please enter a valid score between 0 and 100000');
                 return;
             }
             
             // Update the player
             player.name = newName.trim();
             player.score = newScore;
-            player.progress = newProgress;
+            
+            // Sort by score (highest first)
+            leaderboardData = sortDataByScore(leaderboardData);
             
             // Update the player list
             renderPlayerList();
@@ -905,6 +931,9 @@
             
             // Remove the player
             leaderboardData = leaderboardData.filter(p => p.id !== playerId);
+            
+            // Sort by score (highest first)
+            leaderboardData = sortDataByScore(leaderboardData);
             
             // Update the player list
             renderPlayerList();
@@ -962,3 +991,4 @@
     </script>
 </body>
 </html>
+
