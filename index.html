@@ -228,33 +228,33 @@
             border-radius: 4px;
         }
 
-        .change-link {
-            text-align: center;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-top: 1px solid #dee2e6;
-        }
-
-        .change-link a {
-            color: #4a6491;
-            text-decoration: none;
-            font-weight: 600;
-            cursor: pointer;
-            transition: color 0.3s;
-        }
-
-        .change-link a:hover {
-            color: #2c3e50;
-            text-decoration: underline;
-        }
-
         footer {
-            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
             padding: 20px;
             color: white;
             margin-top: 20px;
             font-size: 0.9rem;
             opacity: 0.8;
+        }
+
+        .change-btn {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .change-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
         }
 
         /* Modal Styles */
@@ -421,6 +421,30 @@
             margin-top: 20px;
         }
 
+        .password-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4a6491;
+        }
+
+        .password-section h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .edit-section {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .controls {
                 flex-direction: column;
@@ -444,6 +468,11 @@
             .player-actions {
                 flex-direction: column;
                 gap: 5px;
+            }
+            
+            footer {
+                flex-direction: column;
+                gap: 10px;
             }
         }
     </style>
@@ -485,14 +514,11 @@
                 </tbody>
             </table>
         </div>
-        
-        <div class="change-link">
-            <a id="changeLink">Change</a>
-        </div>
     </div>
     
     <footer>
         <p>Leaderboard &copy; 2023 | Updated in real-time</p>
+        <a class="change-btn" id="changeLink">Change</a>
     </footer>
 
     <!-- Edit Modal -->
@@ -503,47 +529,48 @@
                 <button class="close-btn" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label for="newPlayerName">Add New Player</label>
-                    <input type="text" id="newPlayerName" placeholder="Enter player name">
-                </div>
-                <div class="form-group">
-                    <label for="newPlayerScore">Score</label>
-                    <input type="number" id="newPlayerScore" placeholder="Enter score" min="0" max="10000">
-                </div>
-                <div class="form-group">
-                    <label for="newPlayerProgress">Progress (%)</label>
-                    <input type="number" id="newPlayerProgress" placeholder="Enter progress" min="0" max="100">
-                </div>
-                <button class="btn btn-primary" id="addPlayerBtn">Add Player</button>
-                
-                <h3 style="margin: 25px 0 15px;">Current Players</h3>
-                <div class="player-list" id="playerList">
-                    <!-- Player list will be populated by JavaScript -->
+                <div class="password-section">
+                    <h3>Authentication Required</h3>
+                    <div class="form-group">
+                        <label for="passwordInput">Enter Password to Edit</label>
+                        <input type="password" id="passwordInput" placeholder="Enter password">
+                        <div class="error-message" id="passwordError">Incorrect password. Please try again.</div>
+                    </div>
+                    <button class="btn btn-primary" id="verifyPasswordBtn">Verify Password</button>
                 </div>
                 
-                <div class="form-actions">
-                    <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
-                    <button class="btn btn-success" id="saveBtn">Save Changes</button>
+                <div class="edit-section" id="editSection">
+                    <div class="form-group">
+                        <label for="newPlayerName">Add New Player</label>
+                        <input type="text" id="newPlayerName" placeholder="Enter player name">
+                    </div>
+                    <div class="form-group">
+                        <label for="newPlayerScore">Score</label>
+                        <input type="number" id="newPlayerScore" placeholder="Enter score" min="0" max="10000">
+                    </div>
+                    <div class="form-group">
+                        <label for="newPlayerProgress">Progress (%)</label>
+                        <input type="number" id="newPlayerProgress" placeholder="Enter progress" min="0" max="100">
+                    </div>
+                    <button class="btn btn-primary" id="addPlayerBtn">Add Player</button>
+                    
+                    <h3 style="margin: 25px 0 15px;">Current Players</h3>
+                    <div class="player-list" id="playerList">
+                        <!-- Player list will be populated by JavaScript -->
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                        <button class="btn btn-success" id="saveBtn">Save Changes</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Sample leaderboard data
-        let leaderboardData = [
-            { id: 1, name: "Alex Johnson", score: 9850, progress: 98 },
-            { id: 2, name: "Sam Wilson", score: 8720, progress: 87 },
-            { id: 3, name: "Taylor Swift", score: 7650, progress: 76 },
-            { id: 4, name: "Jordan Lee", score: 7430, progress: 74 },
-            { id: 5, name: "Casey Kim", score: 6980, progress: 69 },
-            { id: 6, name: "Morgan Reed", score: 6540, progress: 65 },
-            { id: 7, name: "Riley Smith", score: 6210, progress: 62 },
-            { id: 8, name: "Avery Brown", score: 5870, progress: 58 },
-            { id: 9, name: "Quinn Davis", score: 5430, progress: 54 },
-            { id: 10, name: "Skyler White", score: 5120, progress: 51 }
-        ];
+        // Password for authentication
+        const correctPassword = "(67a=72b*3x^2/areug45uay";
 
         // DOM elements
         const leaderboardBody = document.getElementById('leaderboardBody');
@@ -560,6 +587,43 @@
         const newPlayerName = document.getElementById('newPlayerName');
         const newPlayerScore = document.getElementById('newPlayerScore');
         const newPlayerProgress = document.getElementById('newPlayerProgress');
+        const passwordInput = document.getElementById('passwordInput');
+        const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
+        const passwordError = document.getElementById('passwordError');
+        const editSection = document.getElementById('editSection');
+
+        // Track authentication state
+        let isAuthenticated = false;
+
+        // Load leaderboard data from localStorage or use default data
+        function loadLeaderboardData() {
+            const savedData = localStorage.getItem('leaderboardData');
+            if (savedData) {
+                return JSON.parse(savedData);
+            } else {
+                // Default data if nothing is saved
+                return [
+                    { id: 1, name: "Alex Johnson", score: 9850, progress: 98 },
+                    { id: 2, name: "Sam Wilson", score: 8720, progress: 87 },
+                    { id: 3, name: "Taylor Swift", score: 7650, progress: 76 },
+                    { id: 4, name: "Jordan Lee", score: 7430, progress: 74 },
+                    { id: 5, name: "Casey Kim", score: 6980, progress: 69 },
+                    { id: 6, name: "Morgan Reed", score: 6540, progress: 65 },
+                    { id: 7, name: "Riley Smith", score: 6210, progress: 62 },
+                    { id: 8, name: "Avery Brown", score: 5870, progress: 58 },
+                    { id: 9, name: "Quinn Davis", score: 5430, progress: 54 },
+                    { id: 10, name: "Skyler White", score: 5120, progress: 51 }
+                ];
+            }
+        }
+
+        // Save leaderboard data to localStorage
+        function saveLeaderboardData(data) {
+            localStorage.setItem('leaderboardData', JSON.stringify(data));
+        }
+
+        // Initialize leaderboard data
+        let leaderboardData = loadLeaderboardData();
 
         // Initialize the leaderboard
         function initLeaderboard() {
@@ -691,10 +755,32 @@
             renderLeaderboard(filteredData);
         }
 
+        // Verify password
+        function verifyPassword() {
+            const enteredPassword = passwordInput.value.trim();
+            
+            if (enteredPassword === correctPassword) {
+                isAuthenticated = true;
+                passwordError.style.display = 'none';
+                editSection.style.display = 'block';
+                renderPlayerList();
+            } else {
+                passwordError.style.display = 'block';
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        }
+
         // Open the edit modal
         function openEditModal() {
-            renderPlayerList();
+            // Reset authentication state
+            isAuthenticated = false;
+            passwordInput.value = '';
+            passwordError.style.display = 'none';
+            editSection.style.display = 'none';
+            
             editModal.style.display = 'flex';
+            passwordInput.focus();
         }
 
         // Close the edit modal
@@ -706,8 +792,20 @@
             newPlayerProgress.value = '';
         }
 
+        // Save changes and close modal
+        function saveChanges() {
+            // Save to localStorage
+            saveLeaderboardData(leaderboardData);
+            closeEditModal();
+        }
+
         // Add a new player
         function addNewPlayer() {
+            if (!isAuthenticated) {
+                alert('Please verify your password first');
+                return;
+            }
+            
             const name = newPlayerName.value.trim();
             const score = parseInt(newPlayerScore.value);
             const progress = parseInt(newPlayerProgress.value);
@@ -749,10 +847,18 @@
             
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
+            
+            // Save changes
+            saveLeaderboardData(leaderboardData);
         }
 
         // Edit a player
         function editPlayer(playerId) {
+            if (!isAuthenticated) {
+                alert('Please verify your password first');
+                return;
+            }
+            
             const player = leaderboardData.find(p => p.id === playerId);
             if (!player) return;
             
@@ -781,10 +887,18 @@
             
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
+            
+            // Save changes
+            saveLeaderboardData(leaderboardData);
         }
 
         // Delete a player
         function deletePlayer(playerId) {
+            if (!isAuthenticated) {
+                alert('Please verify your password first');
+                return;
+            }
+            
             if (!confirm('Are you sure you want to delete this player?')) {
                 return;
             }
@@ -797,6 +911,9 @@
             
             // Update the leaderboard
             renderLeaderboard(leaderboardData);
+            
+            // Save changes
+            saveLeaderboardData(leaderboardData);
         }
 
         // Set up event listeners
@@ -821,8 +938,16 @@
             changeLink.addEventListener('click', openEditModal);
             closeModal.addEventListener('click', closeEditModal);
             cancelBtn.addEventListener('click', closeEditModal);
-            saveBtn.addEventListener('click', closeEditModal);
+            saveBtn.addEventListener('click', saveChanges);
             addPlayerBtn.addEventListener('click', addNewPlayer);
+            verifyPasswordBtn.addEventListener('click', verifyPassword);
+            
+            // Allow pressing Enter to verify password
+            passwordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    verifyPassword();
+                }
+            });
             
             // Close modal when clicking outside
             window.addEventListener('click', (e) => {
