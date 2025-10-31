@@ -5,9 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Leaderboard</title>
     
-    <!-- Add Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD6Mnu6hUXdv4XjIty53QjjOBenTQ0gcV0",
+            authDomain: "leaderboard-f6f56.firebaseapp.com",
+            projectId: "leaderboard-f6f56",
+            storageBucket: "leaderboard-f6f56.firebasestorage.app",
+            messagingSenderId: "490760612997",
+            appId: "1:490760612997:web:e11371700e5604f8004dec",
+            measurementId: "G-8X64HDBS9G"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+        
+        // Make Firebase functions available globally
+        window.firebaseApp = app;
+        window.firebaseDb = db;
+        window.firebaseCollection = collection;
+        window.firebaseGetDocs = getDocs;
+        window.firebaseDoc = doc;
+        window.firebaseSetDoc = setDoc;
+        window.firebaseDeleteDoc = deleteDoc;
+        window.firebaseOnSnapshot = onSnapshot;
+    </script>
     
     <style>
         * {
@@ -426,6 +456,12 @@
             display: none;
         }
 
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+
         @media (max-width: 768px) {
             .controls {
                 flex-direction: column;
@@ -484,7 +520,9 @@
                     </tr>
                 </thead>
                 <tbody id="leaderboardBody">
-                    <!-- Leaderboard data will be populated by JavaScript -->
+                    <tr>
+                        <td colspan="5" class="loading">Loading leaderboard data...</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -526,7 +564,7 @@
                     
                     <h3 style="margin: 25px 0 15px;">Current Players</h3>
                     <div class="player-list" id="playerList">
-                        <!-- Player list will be populated by JavaScript -->
+                        <div class="loading">Loading players...</div>
                     </div>
                     
                     <div class="form-actions">
@@ -539,21 +577,6 @@
     </div>
 
     <script>
-        // Firebase configuration - REPLACE WITH YOUR ACTUAL FIREBASE CONFIG
-        const firebaseConfig = {
-            apiKey: "your-api-key",
-            authDomain: "your-project-id.firebaseapp.com",
-            databaseURL: "https://your-project-id-default-rtdb.firebaseio.com",
-            projectId: "your-project-id",
-            storageBucket: "your-project-id.appspot.com",
-            messagingSenderId: "your-sender-id",
-            appId: "your-app-id"
-        };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-
         // Password for authentication
         const correctPassword = "(67a=72b*3x^2/areug45uay";
 
@@ -576,6 +599,10 @@
 
         // Track authentication state
         let isAuthenticated = false;
+        
+        // Firebase variables
+        let db;
+        let leaderboardCollection;
 
         // Level progression system
         function calculateLevelAndProgress(score) {
@@ -596,82 +623,61 @@
             return { level, progress, scoreToNextLevel: baseScore - score };
         }
 
-        // Load leaderboard data from Firebase
-        function loadLeaderboardDataFromFirebase(callback) {
-            const leaderboardRef = database.ref('leaderboard');
-            
-            // Set up real-time listener
-            leaderboardRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    // Convert Firebase object to array
-                    const leaderboardArray = Object.keys(data).map(key => ({
-                        id: key,
-                        ...data[key]
-                    }));
-                    callback(leaderboardArray);
-                } else {
-                    // If no data in Firebase, use default data
-                    const defaultData = [
-                        { id: "1", name: "Alex Johnson", score: 9850 },
-                        { id: "2", name: "Sam Wilson", score: 8720 },
-                        { id: "3", name: "Taylor Swift", score: 7650 },
-                        { id: "4", name: "Jordan Lee", score: 7430 },
-                        { id: "5", name: "Casey Kim", score: 6980 },
-                        { id: "6", name: "Morgan Reed", score: 6540 },
-                        { id: "7", name: "Riley Smith", score: 6210 },
-                        { id: "8", name: "Avery Brown", score: 5870 },
-                        { id: "9", name: "Quinn Davis", score: 5430 },
-                        { id: "10", name: "Skyler White", score: 5120 }
-                    ];
-                    
-                    // Save default data to Firebase
-                    defaultData.forEach(player => {
-                        leaderboardRef.child(player.id).set(player);
-                    });
-                    
-                    callback(defaultData);
+        // Initialize Firebase and leaderboard
+        async function initLeaderboard() {
+            try {
+                // Wait for Firebase to be available
+                if (!window.firebaseDb) {
+                    setTimeout(initLeaderboard, 100);
+                    return;
                 }
-            });
+                
+                db = window.firebaseDb;
+                leaderboardCollection = window.firebaseCollection(db, 'leaderboard');
+                
+                // Set up real-time listener
+                setupRealtimeListener();
+                setupEventListeners();
+            } catch (error) {
+                console.error('Error initializing leaderboard:', error);
+                leaderboardBody.innerHTML = '<tr><td colspan="5" class="loading">Error loading leaderboard. Please refresh the page.</td></tr>';
+            }
         }
 
-        // Save leaderboard data to Firebase
-        function saveLeaderboardDataToFirebase(data) {
-            const leaderboardRef = database.ref('leaderboard');
-            
-            // Clear existing data
-            leaderboardRef.remove().then(() => {
-                // Save new data
-                data.forEach(player => {
-                    leaderboardRef.child(player.id).set({
-                        name: player.name,
-                        score: player.score
+        // Set up real-time Firestore listener
+        function setupRealtimeListener() {
+            window.firebaseOnSnapshot(leaderboardCollection, (snapshot) => {
+                const leaderboardData = [];
+                snapshot.forEach((doc) => {
+                    leaderboardData.push({
+                        id: doc.id,
+                        ...doc.data()
                     });
                 });
-            });
-        }
-
-        // Sort data by score (highest first)
-        function sortDataByScore(data) {
-            return [...data].sort((a, b) => b.score - a.score);
-        }
-
-        // Initialize the leaderboard
-        function initLeaderboard() {
-            // Load data from Firebase with real-time updates
-            loadLeaderboardDataFromFirebase((data) => {
-                leaderboardData = sortDataByScore(data);
+                
+                // Sort by score (highest first)
+                leaderboardData.sort((a, b) => b.score - a.score);
+                
+                // Render the leaderboard
                 renderLeaderboard(leaderboardData);
+                
+                // If modal is open, update player list
+                if (editModal.style.display === 'flex' && isAuthenticated) {
+                    renderPlayerList(leaderboardData);
+                }
+            }, (error) => {
+                console.error('Error listening to leaderboard:', error);
+                leaderboardBody.innerHTML = '<tr><td colspan="5" class="loading">Error loading leaderboard data.</td></tr>';
             });
-            
-            setupEventListeners();
         }
-
-        // Global variable to store leaderboard data
-        let leaderboardData = [];
 
         // Render the leaderboard
         function renderLeaderboard(data) {
+            if (data.length === 0) {
+                leaderboardBody.innerHTML = '<tr><td colspan="5" class="loading">No players found. Add some players to get started!</td></tr>';
+                return;
+            }
+            
             leaderboardBody.innerHTML = '';
             
             data.forEach((player, index) => {
@@ -718,10 +724,15 @@
         }
 
         // Render the player list in the modal
-        function renderPlayerList() {
+        function renderPlayerList(data) {
             playerList.innerHTML = '';
             
-            leaderboardData.forEach((player, index) => {
+            if (data.length === 0) {
+                playerList.innerHTML = '<div class="loading">No players found</div>';
+                return;
+            }
+            
+            data.forEach((player, index) => {
                 const playerItem = document.createElement('div');
                 playerItem.className = 'player-item';
                 
@@ -767,16 +778,30 @@
         function filterLeaderboard() {
             const searchTerm = searchInput.value.toLowerCase();
             
-            if (searchTerm === '') {
-                renderLeaderboard(leaderboardData);
-                return;
-            }
-            
-            const filteredData = leaderboardData.filter(player => 
-                player.name.toLowerCase().includes(searchTerm)
-            );
-            
-            renderLeaderboard(filteredData);
+            // Get current data from Firestore
+            window.firebaseGetDocs(leaderboardCollection).then((snapshot) => {
+                const leaderboardData = [];
+                snapshot.forEach((doc) => {
+                    leaderboardData.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                // Sort by score (highest first)
+                leaderboardData.sort((a, b) => b.score - a.score);
+                
+                if (searchTerm === '') {
+                    renderLeaderboard(leaderboardData);
+                    return;
+                }
+                
+                const filteredData = leaderboardData.filter(player => 
+                    player.name.toLowerCase().includes(searchTerm)
+                );
+                
+                renderLeaderboard(filteredData);
+            });
         }
 
         // Verify password
@@ -787,7 +812,21 @@
                 isAuthenticated = true;
                 passwordError.style.display = 'none';
                 editSection.style.display = 'block';
-                renderPlayerList();
+                
+                // Load current data for the player list
+                window.firebaseGetDocs(leaderboardCollection).then((snapshot) => {
+                    const leaderboardData = [];
+                    snapshot.forEach((doc) => {
+                        leaderboardData.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    // Sort by score (highest first)
+                    leaderboardData.sort((a, b) => b.score - a.score);
+                    renderPlayerList(leaderboardData);
+                });
             } else {
                 passwordError.style.display = 'block';
                 passwordInput.value = '';
@@ -815,15 +854,8 @@
             newPlayerScore.value = '';
         }
 
-        // Save changes and close modal
-        function saveChanges() {
-            // Save to Firebase
-            saveLeaderboardDataToFirebase(leaderboardData);
-            closeEditModal();
-        }
-
         // Add a new player
-        function addNewPlayer() {
+        async function addNewPlayer() {
             if (!isAuthenticated) {
                 alert('Please verify your password first');
                 return;
@@ -842,71 +874,76 @@
                 return;
             }
             
-            // Generate a new ID
-            const newId = Date.now().toString(); // Use timestamp as ID
-            
-            // Add the new player
-            leaderboardData.push({
-                id: newId,
-                name: name,
-                score: score
-            });
-            
-            // Sort by score (highest first)
-            leaderboardData = sortDataByScore(leaderboardData);
-            
-            // Reset form fields
-            newPlayerName.value = '';
-            newPlayerScore.value = '';
-            
-            // Update the player list
-            renderPlayerList();
-            
-            // Update the leaderboard
-            renderLeaderboard(leaderboardData);
-            
-            // Save changes to Firebase
-            saveLeaderboardDataToFirebase(leaderboardData);
+            try {
+                // Generate a unique ID
+                const playerId = Date.now().toString();
+                
+                // Add the new player to Firestore
+                await window.firebaseSetDoc(window.firebaseDoc(db, 'leaderboard', playerId), {
+                    name: name,
+                    score: score
+                });
+                
+                // Reset form fields
+                newPlayerName.value = '';
+                newPlayerScore.value = '';
+                
+                // Success message
+                alert('Player added successfully!');
+            } catch (error) {
+                console.error('Error adding player:', error);
+                alert('Error adding player. Please try again.');
+            }
         }
 
         // Edit a player
-        function editPlayer(playerId) {
+        async function editPlayer(playerId) {
             if (!isAuthenticated) {
                 alert('Please verify your password first');
                 return;
             }
             
-            const player = leaderboardData.find(p => p.id === playerId);
-            if (!player) return;
+            // Get current player data
+            const playerDoc = await window.firebaseGetDocs(window.firebaseCollection(db, 'leaderboard'));
+            let playerData = null;
             
-            const newName = prompt('Enter new name:', player.name);
+            playerDoc.forEach((doc) => {
+                if (doc.id === playerId) {
+                    playerData = doc.data();
+                }
+            });
+            
+            if (!playerData) {
+                alert('Player not found');
+                return;
+            }
+            
+            const newName = prompt('Enter new name:', playerData.name);
             if (newName === null) return; // User cancelled
             
-            const newScore = parseInt(prompt('Enter new score:', player.score));
+            const newScore = parseInt(prompt('Enter new score:', playerData.score));
             if (isNaN(newScore) || newScore < 0 || newScore > 100000) {
                 alert('Please enter a valid score between 0 and 100000');
                 return;
             }
             
-            // Update the player
-            player.name = newName.trim();
-            player.score = newScore;
-            
-            // Sort by score (highest first)
-            leaderboardData = sortDataByScore(leaderboardData);
-            
-            // Update the player list
-            renderPlayerList();
-            
-            // Update the leaderboard
-            renderLeaderboard(leaderboardData);
-            
-            // Save changes to Firebase
-            saveLeaderboardDataToFirebase(leaderboardData);
+            try {
+                // Update the player in Firestore
+                await window.firebaseSetDoc(window.firebaseDoc(db, 'leaderboard', playerId), {
+                    name: newName.trim(),
+                    score: newScore
+                });
+                
+                // Success message
+                alert('Player updated successfully!');
+            } catch (error) {
+                console.error('Error updating player:', error);
+                alert('Error updating player. Please try again.');
+            }
         }
 
         // Delete a player
-        function deletePlayer(playerId) {
+        async function deletePlayer(playerId) {
             if (!isAuthenticated) {
                 alert('Please verify your password first');
                 return;
@@ -916,20 +953,16 @@
                 return;
             }
             
-            // Remove the player
-            leaderboardData = leaderboardData.filter(p => p.id !== playerId);
-            
-            // Sort by score (highest first)
-            leaderboardData = sortDataByScore(leaderboardData);
-            
-            // Update the player list
-            renderPlayerList();
-            
-            // Update the leaderboard
-            renderLeaderboard(leaderboardData);
-            
-            // Save changes to Firebase
-            saveLeaderboardDataToFirebase(leaderboardData);
+            try {
+                // Delete the player from Firestore
+                await window.firebaseDeleteDoc(window.firebaseDoc(db, 'leaderboard', playerId));
+                
+                // Success message
+                alert('Player deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting player:', error);
+                alert('Error deleting player. Please try again.');
+            }
         }
 
         // Set up event listeners
@@ -941,7 +974,7 @@
             changeLink.addEventListener('click', openEditModal);
             closeModal.addEventListener('click', closeEditModal);
             cancelBtn.addEventListener('click', closeEditModal);
-            saveBtn.addEventListener('click', saveChanges);
+            saveBtn.addEventListener('click', closeEditModal);
             addPlayerBtn.addEventListener('click', addNewPlayer);
             verifyPasswordBtn.addEventListener('click', verifyPassword);
             
@@ -965,5 +998,6 @@
     </script>
 </body>
 </html>
+
 
 
