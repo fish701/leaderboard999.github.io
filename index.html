@@ -11,6 +11,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
         import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -27,10 +28,12 @@
         const app = initializeApp(firebaseConfig);
         const analytics = getAnalytics(app);
         const db = getFirestore(app);
+        const auth = getAuth(app);
         
         // Make Firebase functions available globally
         window.firebaseApp = app;
         window.firebaseDb = db;
+        window.firebaseAuth = auth;
         window.firebaseCollection = collection;
         window.firebaseGetDocs = getDocs;
         window.firebaseDoc = doc;
@@ -38,6 +41,10 @@
         window.firebaseDeleteDoc = deleteDoc;
         window.firebaseOnSnapshot = onSnapshot;
         window.firebaseAddDoc = addDoc;
+        window.firebaseCreateUser = createUserWithEmailAndPassword;
+        window.firebaseSignIn = signInWithEmailAndPassword;
+        window.firebaseSignOut = signOut;
+        window.firebaseOnAuthStateChanged = onAuthStateChanged;
         
         console.log('Firebase initialized successfully');
     </script>
@@ -75,6 +82,7 @@
             color: white;
             padding: 25px;
             text-align: center;
+            position: relative;
         }
 
         h1 {
@@ -86,6 +94,48 @@
         .subtitle {
             font-size: 1.1rem;
             opacity: 0.9;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .user-name {
+            color: white;
+            font-weight: 600;
+        }
+
+        .sign-out-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sign-out-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .controls {
@@ -276,6 +326,24 @@
             transform: translateY(-2px);
         }
 
+        .sign-in-btn {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .sign-in-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -294,7 +362,7 @@
             background-color: white;
             border-radius: 12px;
             width: 90%;
-            max-width: 600px;
+            max-width: 500px;
             max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
@@ -440,23 +508,32 @@
             margin-top: 20px;
         }
 
-        .password-section {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
+        .auth-tabs {
+            display: flex;
             margin-bottom: 20px;
-            border-left: 4px solid #4a6491;
+            border-bottom: 1px solid #dee2e6;
         }
 
-        .error-message {
-            color: #dc3545;
-            font-size: 0.9rem;
-            margin-top: 5px;
+        .auth-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .auth-tab.active {
+            color: #4a6491;
+            border-bottom: 3px solid #4a6491;
+        }
+
+        .auth-form {
             display: none;
         }
 
-        .edit-section {
-            display: none;
+        .auth-form.active {
+            display: block;
         }
 
         .loading {
@@ -514,6 +591,12 @@
                 flex-direction: column;
                 gap: 10px;
             }
+            
+            .user-info {
+                position: static;
+                justify-content: center;
+                margin-top: 10px;
+            }
         }
     </style>
 </head>
@@ -522,6 +605,11 @@
         <header>
             <h1>Leaderboard</h1>
             <p class="subtitle">Top performers ranked by score</p>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <div class="user-avatar" id="userAvatar">U</div>
+                <div class="user-name" id="userName">User</div>
+                <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+            </div>
         </header>
         
         <div class="controls">
@@ -553,8 +641,61 @@
     
     <footer>
         <p>Leaderboard &copy; 2023 | Updated in real-time</p>
-        <a class="change-btn" id="changeLink">Change</a>
+        <a class="change-btn" id="changeLink" style="display: none;">Change</a>
+        <a class="sign-in-btn" id="signInLink">Sign In</a>
     </footer>
+
+    <!-- Auth Modal -->
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Sign In / Sign Up</h2>
+                <button class="close-btn" id="closeAuthModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="auth-tabs">
+                    <div class="auth-tab active" data-tab="signin">Sign In</div>
+                    <div class="auth-tab" data-tab="signup">Sign Up</div>
+                </div>
+                
+                <div id="statusMessage"></div>
+                
+                <div class="auth-form active" id="signInForm">
+                    <div class="form-group">
+                        <label for="signInEmail">Email</label>
+                        <input type="email" id="signInEmail" placeholder="Enter your email">
+                    </div>
+                    <div class="form-group">
+                        <label for="signInPassword">Password</label>
+                        <input type="password" id="signInPassword" placeholder="Enter your password">
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" id="cancelAuthBtn">Cancel</button>
+                        <button class="btn btn-primary" id="signInBtn">Sign In</button>
+                    </div>
+                </div>
+                
+                <div class="auth-form" id="signUpForm">
+                    <div class="form-group">
+                        <label for="signUpName">Display Name</label>
+                        <input type="text" id="signUpName" placeholder="Enter your display name">
+                    </div>
+                    <div class="form-group">
+                        <label for="signUpEmail">Email</label>
+                        <input type="email" id="signUpEmail" placeholder="Enter your email">
+                    </div>
+                    <div class="form-group">
+                        <label for="signUpPassword">Password</label>
+                        <input type="password" id="signUpPassword" placeholder="Enter your password (min. 6 characters)">
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" id="cancelSignUpBtn">Cancel</button>
+                        <button class="btn btn-primary" id="signUpBtn">Sign Up</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Edit Modal -->
     <div class="modal" id="editModal">
@@ -564,70 +705,73 @@
                 <button class="close-btn" id="closeModal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="password-section">
-                    <h3>Authentication Required</h3>
-                    <div class="form-group">
-                        <label for="passwordInput">Enter Password to Edit</label>
-                        <input type="password" id="passwordInput" placeholder="Enter password">
-                        <div class="error-message" id="passwordError">Incorrect password. Please try again.</div>
-                    </div>
-                    <button class="btn btn-primary" id="verifyPasswordBtn">Verify Password</button>
+                <div id="editStatusMessage"></div>
+                <div class="form-group">
+                    <label for="newPlayerName">Add New Player</label>
+                    <input type="text" id="newPlayerName" placeholder="Enter player name">
+                </div>
+                <div class="form-group">
+                    <label for="newPlayerScore">Score</label>
+                    <input type="number" id="newPlayerScore" placeholder="Enter score" min="0" max="100000">
+                </div>
+                <button class="btn btn-primary" id="addPlayerBtn">Add Player</button>
+                
+                <h3 style="margin: 25px 0 15px;">Current Players</h3>
+                <div class="player-list" id="playerList">
+                    <div class="loading">Loading players...</div>
                 </div>
                 
-                <div class="edit-section" id="editSection">
-                    <div id="statusMessage"></div>
-                    <div class="form-group">
-                        <label for="newPlayerName">Add New Player</label>
-                        <input type="text" id="newPlayerName" placeholder="Enter player name">
-                    </div>
-                    <div class="form-group">
-                        <label for="newPlayerScore">Score</label>
-                        <input type="number" id="newPlayerScore" placeholder="Enter score" min="0" max="100000">
-                    </div>
-                    <button class="btn btn-primary" id="addPlayerBtn">Add Player</button>
-                    
-                    <h3 style="margin: 25px 0 15px;">Current Players</h3>
-                    <div class="player-list" id="playerList">
-                        <div class="loading">Loading players...</div>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
-                        <button class="btn btn-success" id="saveBtn">Close</button>
-                    </div>
+                <div class="form-actions">
+                    <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                    <button class="btn btn-success" id="saveBtn">Close</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Password for authentication
-        const correctPassword = "(67a=72b*3x^2/areug45uay";
-
         // DOM elements
         const leaderboardBody = document.getElementById('leaderboardBody');
         const searchInput = document.getElementById('searchInput');
         const changeLink = document.getElementById('changeLink');
+        const signInLink = document.getElementById('signInLink');
         const editModal = document.getElementById('editModal');
+        const authModal = document.getElementById('authModal');
         const closeModal = document.getElementById('closeModal');
+        const closeAuthModal = document.getElementById('closeAuthModal');
         const cancelBtn = document.getElementById('cancelBtn');
         const saveBtn = document.getElementById('saveBtn');
         const playerList = document.getElementById('playerList');
         const addPlayerBtn = document.getElementById('addPlayerBtn');
         const newPlayerName = document.getElementById('newPlayerName');
         const newPlayerScore = document.getElementById('newPlayerScore');
-        const passwordInput = document.getElementById('passwordInput');
-        const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
-        const passwordError = document.getElementById('passwordError');
-        const editSection = document.getElementById('editSection');
+        const editStatusMessage = document.getElementById('editStatusMessage');
         const statusMessage = document.getElementById('statusMessage');
-
-        // Track authentication state
-        let isAuthenticated = false;
+        
+        // Auth elements
+        const userInfo = document.getElementById('userInfo');
+        const userAvatar = document.getElementById('userAvatar');
+        const userName = document.getElementById('userName');
+        const signOutBtn = document.getElementById('signOutBtn');
+        const signInEmail = document.getElementById('signInEmail');
+        const signInPassword = document.getElementById('signInPassword');
+        const signInBtn = document.getElementById('signInBtn');
+        const signUpName = document.getElementById('signUpName');
+        const signUpEmail = document.getElementById('signUpEmail');
+        const signUpPassword = document.getElementById('signUpPassword');
+        const signUpBtn = document.getElementById('signUpBtn');
+        const cancelAuthBtn = document.getElementById('cancelAuthBtn');
+        const cancelSignUpBtn = document.getElementById('cancelSignUpBtn');
+        const authTabs = document.querySelectorAll('.auth-tab');
+        const authForms = document.querySelectorAll('.auth-form');
         
         // Firebase variables
         let db;
+        let auth;
         let leaderboardCollection;
+
+        // Current user
+        let currentUser = null;
 
         // Level progression system
         function calculateLevelAndProgress(score) {
@@ -649,10 +793,10 @@
         }
 
         // Show status message
-        function showStatus(message, isSuccess = true) {
-            statusMessage.innerHTML = `<div class="status-message ${isSuccess ? 'status-success' : 'status-error'}">${message}</div>`;
+        function showStatus(message, isSuccess = true, element = statusMessage) {
+            element.innerHTML = `<div class="status-message ${isSuccess ? 'status-success' : 'status-error'}">${message}</div>`;
             setTimeout(() => {
-                statusMessage.innerHTML = '';
+                element.innerHTML = '';
             }, 3000);
         }
 
@@ -675,23 +819,64 @@
                 }
                 
                 db = window.firebaseDb;
-                leaderboardCollection = window.firebaseCollection(db, 'players'); // Changed collection name
+                auth = window.firebaseAuth;
+                leaderboardCollection = window.firebaseCollection(db, 'players');
                 
                 console.log('Firebase initialized successfully');
                 
-                // Set up real-time listener
+                // Set up authentication state listener
+                window.firebaseOnAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        // User is signed in
+                        currentUser = user;
+                        updateUIForUser(user);
+                        console.log('User signed in:', user.email);
+                    } else {
+                        // User is signed out
+                        currentUser = null;
+                        updateUIForGuest();
+                        console.log('User signed out');
+                    }
+                });
+                
+                // Set up real-time listener for leaderboard
                 setupRealtimeListener();
                 setupEventListeners();
-                
-                // Test connection by loading initial data
-                const snapshot = await window.firebaseGetDocs(leaderboardCollection);
-                console.log('Initial data loaded:', snapshot.size, 'players');
                 
             } catch (error) {
                 console.error('Error initializing leaderboard:', error);
                 leaderboardBody.innerHTML = '<tr><td colspan="5" class="loading">Error loading leaderboard. Please refresh the page.</td></tr>';
                 showStatus('Error connecting to database', false);
             }
+        }
+
+        // Update UI for authenticated user
+        function updateUIForUser(user) {
+            // Show user info
+            userInfo.style.display = 'flex';
+            const displayName = user.displayName || user.email.split('@')[0];
+            userName.textContent = displayName;
+            userAvatar.textContent = displayName.charAt(0).toUpperCase();
+            
+            // Show change button
+            changeLink.style.display = 'block';
+            signInLink.style.display = 'none';
+            
+            // Close auth modal if open
+            authModal.style.display = 'none';
+        }
+
+        // Update UI for guest
+        function updateUIForGuest() {
+            // Hide user info
+            userInfo.style.display = 'none';
+            
+            // Hide change button
+            changeLink.style.display = 'none';
+            signInLink.style.display = 'block';
+            
+            // Close edit modal if open
+            editModal.style.display = 'none';
         }
 
         // Set up real-time Firestore listener
@@ -714,8 +899,8 @@
                 // Render the leaderboard
                 renderLeaderboard(leaderboardData);
                 
-                // If modal is open, update player list
-                if (editModal.style.display === 'flex' && isAuthenticated) {
+                // If edit modal is open, update player list
+                if (editModal.style.display === 'flex' && currentUser) {
                     renderPlayerList(leaderboardData);
                 }
             }, (error) => {
@@ -858,46 +1043,51 @@
             });
         }
 
-        // Verify password
-        function verifyPassword() {
-            const enteredPassword = passwordInput.value.trim();
-            
-            if (enteredPassword === correctPassword) {
-                isAuthenticated = true;
-                passwordError.style.display = 'none';
-                editSection.style.display = 'block';
-                
-                // Load current data for the player list
-                window.firebaseGetDocs(leaderboardCollection).then((snapshot) => {
-                    const leaderboardData = [];
-                    snapshot.forEach((doc) => {
-                        leaderboardData.push({
-                            id: doc.id,
-                            ...doc.data()
-                        });
-                    });
-                    
-                    // Sort by score (highest first)
-                    leaderboardData.sort((a, b) => b.score - a.score);
-                    renderPlayerList(leaderboardData);
-                });
-            } else {
-                passwordError.style.display = 'block';
-                passwordInput.value = '';
-                passwordInput.focus();
-            }
+        // Open the auth modal
+        function openAuthModal() {
+            authModal.style.display = 'flex';
+            // Reset forms
+            document.getElementById('signInForm').classList.add('active');
+            document.getElementById('signUpForm').classList.remove('active');
+            document.querySelector('.auth-tab[data-tab="signin"]').classList.add('active');
+            document.querySelector('.auth-tab[data-tab="signup"]').classList.remove('active');
+            signInEmail.focus();
+        }
+
+        // Close the auth modal
+        function closeAuthModal() {
+            authModal.style.display = 'none';
+            // Reset form fields
+            signInEmail.value = '';
+            signInPassword.value = '';
+            signUpName.value = '';
+            signUpEmail.value = '';
+            signUpPassword.value = '';
+            statusMessage.innerHTML = '';
         }
 
         // Open the edit modal
         function openEditModal() {
-            // Reset authentication state
-            isAuthenticated = false;
-            passwordInput.value = '';
-            passwordError.style.display = 'none';
-            editSection.style.display = 'none';
+            if (!currentUser) {
+                openAuthModal();
+                return;
+            }
             
             editModal.style.display = 'flex';
-            passwordInput.focus();
+            // Load current data for the player list
+            window.firebaseGetDocs(leaderboardCollection).then((snapshot) => {
+                const leaderboardData = [];
+                snapshot.forEach((doc) => {
+                    leaderboardData.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                // Sort by score (highest first)
+                leaderboardData.sort((a, b) => b.score - a.score);
+                renderPlayerList(leaderboardData);
+            });
         }
 
         // Close the edit modal
@@ -906,12 +1096,80 @@
             // Reset form fields
             newPlayerName.value = '';
             newPlayerScore.value = '';
+            editStatusMessage.innerHTML = '';
+        }
+
+        // Sign in user
+        async function signIn() {
+            const email = signInEmail.value.trim();
+            const password = signInPassword.value.trim();
+            
+            if (!email || !password) {
+                showStatus('Please enter both email and password', false);
+                return;
+            }
+            
+            try {
+                console.log('Signing in:', email);
+                await window.firebaseSignIn(auth, email, password);
+                showStatus('Signed in successfully!', true);
+                // The UI will update automatically via the auth state listener
+            } catch (error) {
+                console.error('Error signing in:', error);
+                showStatus('Error signing in: ' + error.message, false);
+            }
+        }
+
+        // Sign up user
+        async function signUp() {
+            const name = signUpName.value.trim();
+            const email = signUpEmail.value.trim();
+            const password = signUpPassword.value.trim();
+            
+            if (!name || !email || !password) {
+                showStatus('Please fill in all fields', false);
+                return;
+            }
+            
+            if (password.length < 6) {
+                showStatus('Password must be at least 6 characters', false);
+                return;
+            }
+            
+            try {
+                console.log('Signing up:', email);
+                const userCredential = await window.firebaseCreateUser(auth, email, password);
+                
+                // Update user profile with display name
+                await window.firebaseSetDoc(window.firebaseDoc(db, 'users', userCredential.user.uid), {
+                    displayName: name,
+                    email: email,
+                    createdAt: new Date()
+                });
+                
+                showStatus('Account created successfully!', true);
+                // The UI will update automatically via the auth state listener
+            } catch (error) {
+                console.error('Error signing up:', error);
+                showStatus('Error creating account: ' + error.message, false);
+            }
+        }
+
+        // Sign out user
+        async function signOutUser() {
+            try {
+                await window.firebaseSignOut(auth);
+                showStatus('Signed out successfully', true, editStatusMessage);
+            } catch (error) {
+                console.error('Error signing out:', error);
+                showStatus('Error signing out', false, editStatusMessage);
+            }
         }
 
         // Add a new player
         async function addNewPlayer() {
-            if (!isAuthenticated) {
-                alert('Please verify your password first');
+            if (!currentUser) {
+                showStatus('Please sign in to add players', false, editStatusMessage);
                 return;
             }
             
@@ -919,12 +1177,12 @@
             const score = parseInt(newPlayerScore.value);
             
             if (!name || isNaN(score)) {
-                showStatus('Please fill in all fields with valid values', false);
+                showStatus('Please fill in all fields with valid values', false, editStatusMessage);
                 return;
             }
             
             if (score < 0 || score > 100000) {
-                showStatus('Score must be between 0 and 100000', false);
+                showStatus('Score must be between 0 and 100000', false, editStatusMessage);
                 return;
             }
             
@@ -935,7 +1193,8 @@
                 const docRef = await window.firebaseAddDoc(leaderboardCollection, {
                     name: name,
                     score: score,
-                    createdAt: new Date()
+                    createdAt: new Date(),
+                    createdBy: currentUser.uid
                 });
                 
                 console.log('Player added with ID:', docRef.id);
@@ -945,18 +1204,18 @@
                 newPlayerScore.value = '';
                 
                 // Success message
-                showStatus('Player added successfully!');
+                showStatus('Player added successfully!', true, editStatusMessage);
                 
             } catch (error) {
                 console.error('Error adding player:', error);
-                showStatus('Error adding player: ' + error.message, false);
+                showStatus('Error adding player: ' + error.message, false, editStatusMessage);
             }
         }
 
         // Edit a player
         async function editPlayer(playerId) {
-            if (!isAuthenticated) {
-                alert('Please verify your password first');
+            if (!currentUser) {
+                showStatus('Please sign in to edit players', false, editStatusMessage);
                 return;
             }
             
@@ -972,7 +1231,7 @@
             });
             
             if (!playerData) {
-                showStatus('Player not found', false);
+                showStatus('Player not found', false, editStatusMessage);
                 return;
             }
             
@@ -981,7 +1240,7 @@
             
             const newScore = parseInt(prompt('Enter new score:', playerData.score));
             if (isNaN(newScore) || newScore < 0 || newScore > 100000) {
-                showStatus('Please enter a valid score between 0 and 100000', false);
+                showStatus('Please enter a valid score between 0 and 100000', false, editStatusMessage);
                 return;
             }
             
@@ -992,21 +1251,22 @@
                 await window.firebaseSetDoc(playerDoc, {
                     name: newName.trim(),
                     score: newScore,
-                    updatedAt: new Date()
+                    updatedAt: new Date(),
+                    updatedBy: currentUser.uid
                 }, { merge: true });
                 
                 // Success message
-                showStatus('Player updated successfully!');
+                showStatus('Player updated successfully!', true, editStatusMessage);
             } catch (error) {
                 console.error('Error updating player:', error);
-                showStatus('Error updating player: ' + error.message, false);
+                showStatus('Error updating player: ' + error.message, false, editStatusMessage);
             }
         }
 
         // Delete a player
         async function deletePlayer(playerId) {
-            if (!isAuthenticated) {
-                alert('Please verify your password first');
+            if (!currentUser) {
+                showStatus('Please sign in to delete players', false, editStatusMessage);
                 return;
             }
             
@@ -1021,10 +1281,10 @@
                 await window.firebaseDeleteDoc(window.firebaseDoc(db, 'players', playerId));
                 
                 // Success message
-                showStatus('Player deleted successfully!');
+                showStatus('Player deleted successfully!', true, editStatusMessage);
             } catch (error) {
                 console.error('Error deleting player:', error);
-                showStatus('Error deleting player: ' + error.message, false);
+                showStatus('Error deleting player: ' + error.message, false, editStatusMessage);
             }
         }
 
@@ -1035,23 +1295,55 @@
             
             // Modal functionality
             changeLink.addEventListener('click', openEditModal);
+            signInLink.addEventListener('click', openAuthModal);
             closeModal.addEventListener('click', closeEditModal);
+            closeAuthModal.addEventListener('click', closeAuthModal);
             cancelBtn.addEventListener('click', closeEditModal);
             saveBtn.addEventListener('click', closeEditModal);
             addPlayerBtn.addEventListener('click', addNewPlayer);
-            verifyPasswordBtn.addEventListener('click', verifyPassword);
+            signOutBtn.addEventListener('click', signOutUser);
             
-            // Allow pressing Enter to verify password
-            passwordInput.addEventListener('keypress', (e) => {
+            // Auth functionality
+            signInBtn.addEventListener('click', signIn);
+            signUpBtn.addEventListener('click', signUp);
+            cancelAuthBtn.addEventListener('click', closeAuthModal);
+            cancelSignUpBtn.addEventListener('click', closeAuthModal);
+            
+            // Auth tabs
+            authTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.getAttribute('data-tab');
+                    
+                    // Update active tab
+                    authTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Show corresponding form
+                    authForms.forEach(form => form.classList.remove('active'));
+                    document.getElementById(tabName + 'Form').classList.add('active');
+                });
+            });
+            
+            // Allow pressing Enter in auth forms
+            signInPassword.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
-                    verifyPassword();
+                    signIn();
                 }
             });
             
-            // Close modal when clicking outside
+            signUpPassword.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    signUp();
+                }
+            });
+            
+            // Close modals when clicking outside
             window.addEventListener('click', (e) => {
                 if (e.target === editModal) {
                     closeEditModal();
+                }
+                if (e.target === authModal) {
+                    closeAuthModal();
                 }
             });
         }
