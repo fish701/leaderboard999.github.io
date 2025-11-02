@@ -29,7 +29,14 @@
         const analytics = getAnalytics(app);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        
+        // Configure Google Auth Provider
         const provider = new GoogleAuthProvider();
+        provider.addScope('profile');
+        provider.addScope('email');
+        provider.setCustomParameters({
+            'prompt': 'select_account'
+        });
         
         // Make Firebase functions available globally
         window.firebaseApp = app;
@@ -156,6 +163,38 @@
 
         .sign-out-btn:hover {
             background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .auth-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+            text-align: center;
+        }
+
+        .setup-guide {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #bee5eb;
+        }
+
+        .setup-guide h4 {
+            margin-bottom: 10px;
+            color: #0c5460;
+        }
+
+        .setup-guide ol {
+            margin-left: 20px;
+        }
+
+        .setup-guide li {
+            margin-bottom: 5px;
         }
 
         .controls {
@@ -606,6 +645,20 @@
             </div>
             <h1>Leaderboard</h1>
             <p class="subtitle">Top performers ranked by score</p>
+            
+            <!-- Setup Guide -->
+            <div class="setup-guide" id="setupGuide" style="display: none;">
+                <h4>Google Sign-In Setup Required</h4>
+                <p>To enable Google Sign-In, please follow these steps:</p>
+                <ol>
+                    <li>Go to <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a></li>
+                    <li>Select your project "leaderboard-f6f56"</li>
+                    <li>Go to Authentication → Sign-in method</li>
+                    <li>Enable "Google" provider</li>
+                    <li>Add your domain to authorized domains</li>
+                    <li>Save changes and refresh this page</li>
+                </ol>
+            </div>
         </header>
         
         <div class="controls">
@@ -706,6 +759,7 @@
         const editSection = document.getElementById('editSection');
         const statusMessage = document.getElementById('statusMessage');
         const authSection = document.getElementById('authSection');
+        const setupGuide = document.getElementById('setupGuide');
 
         // Track authentication state
         let isAuthenticated = false;
@@ -742,6 +796,22 @@
             }, 3000);
         }
 
+        // Show auth error
+        function showAuthError(message) {
+            authSection.innerHTML = `
+                <div class="auth-error">
+                    <strong>Authentication Error:</strong> ${message}
+                    <br><br>
+                    <button class="btn btn-primary" onclick="showSetupGuide()">Show Setup Instructions</button>
+                </div>
+            `;
+        }
+
+        // Show setup guide
+        function showSetupGuide() {
+            setupGuide.style.display = 'block';
+        }
+
         // Render authentication UI
         function renderAuthUI(user) {
             if (user) {
@@ -756,6 +826,7 @@
                 
                 // Add event listener for sign out
                 document.getElementById('signOutBtn').addEventListener('click', handleSignOut);
+                setupGuide.style.display = 'none';
             } else {
                 // User is signed out
                 authSection.innerHTML = `
@@ -778,12 +849,25 @@
         // Handle Google Sign-In
         async function handleSignIn() {
             try {
+                console.log('Attempting Google Sign-In...');
                 const result = await window.firebaseSignInWithPopup(window.firebaseAuth, window.firebaseProvider);
                 console.log('Signed in successfully:', result.user);
                 showStatus('Signed in successfully!');
             } catch (error) {
                 console.error('Error signing in:', error);
-                showStatus('Error signing in: ' + error.message, false);
+                
+                // Show specific error messages
+                let errorMessage = error.message;
+                if (error.code === 'auth/operation-not-allowed') {
+                    errorMessage = 'Google Sign-In is not enabled in your Firebase project. Please enable it in the Firebase Console.';
+                    showSetupGuide();
+                } else if (error.code === 'auth/popup-blocked') {
+                    errorMessage = 'Sign-in popup was blocked by your browser. Please allow popups for this site.';
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                    errorMessage = 'Sign-in was cancelled. Please try again.';
+                }
+                
+                showAuthError(errorMessage);
             }
         }
 
@@ -825,7 +909,11 @@
                 
                 // Set up auth state listener
                 window.firebaseOnAuthStateChanged(auth, (user) => {
+                    console.log('Auth state changed:', user);
                     renderAuthUI(user);
+                }, (error) => {
+                    console.error('Auth state listener error:', error);
+                    showAuthError('Authentication error: ' + error.message);
                 });
                 
                 // Set up real-time listener
@@ -925,6 +1013,9 @@
                 leaderboardBody.appendChild(row);
             });
         }
+
+        // The rest of the functions remain the same as before...
+        // [Previous code for renderPlayerList, filterLeaderboard, verifyPassword, etc.]
 
         // Render the player list in the modal
         function renderPlayerList(data) {
