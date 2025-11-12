@@ -10,7 +10,7 @@
         // Import the functions you need from the SDKs you need
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
-        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         // Your web app's Firebase configuration
@@ -54,6 +54,8 @@
         window.firebaseDeleteDoc = deleteDoc;
         window.firebaseOnSnapshot = onSnapshot;
         window.firebaseAddDoc = addDoc;
+        window.firebaseQuery = query;
+        window.firebaseWhere = where;
         
         console.log('Firebase initialized successfully');
     </script>
@@ -181,14 +183,13 @@
             background-color: #218838;
         }
 
-        .auth-error {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 10px;
+        .already-bound {
+            background-color: #6c757d;
+            color: white;
+            border: none;
             border-radius: 4px;
-            margin: 10px 0;
-            border: 1px solid #f5c6cb;
-            text-align: center;
+            padding: 8px 16px;
+            font-weight: 500;
         }
 
         .setup-guide {
@@ -381,6 +382,15 @@
             margin-left: 8px;
         }
 
+        .my-player {
+            background-color: #e8f5e8 !important;
+            border-left: 4px solid #28a745;
+        }
+
+        .my-player:hover {
+            background-color: #d4edda !important;
+        }
+
         footer {
             display: flex;
             justify-content: center;
@@ -476,7 +486,7 @@
             color: #2c3e50;
         }
 
-        .form-group input {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 10px 15px;
             border: 1px solid #ced4da;
@@ -485,7 +495,7 @@
             transition: all 0.3s;
         }
 
-        .form-group input:focus {
+        .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #4a6491;
             box-shadow: 0 0 0 3px rgba(74, 100, 145, 0.2);
@@ -627,6 +637,14 @@
             border-left: 4px solid #28a745;
         }
 
+        .already-bound-section {
+            background-color: #e2e3e5;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #6c757d;
+        }
+
         @media (max-width: 768px) {
             .auth-section {
                 position: static;
@@ -747,6 +765,13 @@
                 <div class="edit-section" id="editSection">
                     <div id="statusMessage"></div>
                     
+                    <!-- Already Bound Section -->
+                    <div class="already-bound-section" id="alreadyBoundSection" style="display: none;">
+                        <h3>Account Already Bound</h3>
+                        <p>Your Google account is already bound to: <strong id="boundPlayerName"></strong></p>
+                        <p>Each Google account can only be bound to one player.</p>
+                    </div>
+                    
                     <!-- Bind Account Section -->
                     <div class="bind-section" id="bindSection" style="display: none;">
                         <h3>Bind Google Account</h3>
@@ -809,14 +834,17 @@
         const authSection = document.getElementById('authSection');
         const setupGuide = document.getElementById('setupGuide');
         const bindSection = document.getElementById('bindSection');
+        const alreadyBoundSection = document.getElementById('alreadyBoundSection');
         const currentUserEmail = document.getElementById('currentUserEmail');
         const playerToBind = document.getElementById('playerToBind');
         const bindAccountBtn = document.getElementById('bindAccountBtn');
+        const boundPlayerName = document.getElementById('boundPlayerName');
 
         // Track authentication state
         let isAuthenticated = false;
         let currentUser = null;
         let currentLeaderboardData = [];
+        let userBoundPlayer = null;
         
         // Firebase variables
         let db;
@@ -850,39 +878,72 @@
             }, 3000);
         }
 
-        // Show auth error
-        function showAuthError(message) {
-            authSection.innerHTML = `
-                <div class="auth-error">
-                    <strong>Authentication Error:</strong> ${message}
-                    <br><br>
-                    <button class="btn btn-primary" onclick="showSetupGuide()">Show Setup Instructions</button>
-                </div>
-            `;
-        }
-
         // Show setup guide
         function showSetupGuide() {
             setupGuide.style.display = 'block';
         }
 
+        // Check if user already has a bound player
+        async function checkUserBoundPlayer() {
+            if (!currentUser) return null;
+            
+            try {
+                // Query players collection for any player bound to this user
+                const q = window.firebaseQuery(
+                    window.firebaseCollection(db, 'players'),
+                    window.firebaseWhere('googleAccount.uid', '==', currentUser.uid)
+                );
+                
+                const querySnapshot = await window.firebaseGetDocs(q);
+                
+                if (!querySnapshot.empty) {
+                    const doc = querySnapshot.docs[0];
+                    return {
+                        id: doc.id,
+                        ...doc.data()
+                    };
+                }
+                return null;
+            } catch (error) {
+                console.error('Error checking bound player:', error);
+                return null;
+            }
+        }
+
         // Render authentication UI
-        function renderAuthUI(user) {
+        async function renderAuthUI(user) {
             currentUser = user;
+            userBoundPlayer = await checkUserBoundPlayer();
+            
             if (user) {
                 // User is signed in
-                authSection.innerHTML = `
-                    <div class="user-info">
-                        <img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar">
-                        <span>Hello, ${user.displayName}</span>
-                        <button class="bind-account-btn" id="openBindModal">Bind Account</button>
-                        <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
-                    </div>
-                `;
+                if (userBoundPlayer) {
+                    // User already has a bound player
+                    authSection.innerHTML = `
+                        <div class="user-info">
+                            <img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar">
+                            <span>Hello, ${user.displayName}</span>
+                            <button class="already-bound">Bound to ${userBoundPlayer.name}</button>
+                            <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+                        </div>
+                    `;
+                } else {
+                    // User doesn't have a bound player yet
+                    authSection.innerHTML = `
+                        <div class="user-info">
+                            <img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar">
+                            <span>Hello, ${user.displayName}</span>
+                            <button class="bind-account-btn" id="openBindModal">Bind Account</button>
+                            <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+                        </div>
+                    `;
+                    
+                    // Add event listener for bind modal
+                    document.getElementById('openBindModal').addEventListener('click', openEditModal);
+                }
                 
-                // Add event listeners
+                // Add event listener for sign out
                 document.getElementById('signOutBtn').addEventListener('click', handleSignOut);
-                document.getElementById('openBindModal').addEventListener('click', openEditModal);
                 setupGuide.style.display = 'none';
             } else {
                 // User is signed out
@@ -924,7 +985,7 @@
                     errorMessage = 'Sign-in was cancelled. Please try again.';
                 }
                 
-                showAuthError(errorMessage);
+                showStatus(errorMessage, false);
             }
         }
 
@@ -969,11 +1030,18 @@
 
                 showStatus('Google account successfully bound to player!');
                 
-                // Refresh the player list to show the binding
-                renderPlayerList(currentLeaderboardData);
+                // Update local state
+                userBoundPlayer = await checkUserBoundPlayer();
                 
-                // Clear selection
+                // Refresh the UI
+                renderAuthUI(currentUser);
+                renderLeaderboard(currentLeaderboardData);
+                
+                // Clear selection and hide bind section
                 playerToBind.value = '';
+                bindSection.style.display = 'none';
+                alreadyBoundSection.style.display = 'block';
+                boundPlayerName.textContent = userBoundPlayer.name;
                 
             } catch (error) {
                 console.error('Error binding account:', error);
@@ -1024,9 +1092,6 @@
                 window.firebaseOnAuthStateChanged(auth, (user) => {
                     console.log('Auth state changed:', user);
                     renderAuthUI(user);
-                }, (error) => {
-                    console.error('Auth state listener error:', error);
-                    showAuthError('Authentication error: ' + error.message);
                 });
                 
                 // Set up real-time listener
@@ -1070,7 +1135,9 @@
                 // If modal is open, update player list and dropdown
                 if (editModal.style.display === 'flex' && isAuthenticated) {
                     renderPlayerList(leaderboardData);
-                    populatePlayerDropdown(leaderboardData);
+                    if (!userBoundPlayer) {
+                        populatePlayerDropdown(leaderboardData);
+                    }
                 }
             }, (error) => {
                 console.error('Error listening to leaderboard:', error);
@@ -1112,6 +1179,10 @@
                 // Check if player has Google account bound
                 const linkedBadge = player.googleAccount ? '<span class="linked-badge">Linked</span>' : '';
                 
+                // Check if this is the current user's bound player
+                const isMyPlayer = userBoundPlayer && userBoundPlayer.id === player.id;
+                const rowClass = isMyPlayer ? 'my-player' : '';
+                
                 row.innerHTML = `
                     <td class="rank">${medalHTML}</td>
                     <td class="level">${level}</td>
@@ -1129,6 +1200,10 @@
                         <span style="font-size: 0.8rem; margin-left: 5px;">${progress}%</span>
                     </td>
                 `;
+                
+                if (rowClass) {
+                    row.className = rowClass;
+                }
                 
                 leaderboardBody.appendChild(row);
             });
@@ -1230,12 +1305,22 @@
                 passwordError.style.display = 'none';
                 editSection.style.display = 'block';
                 
-                // Show/hide bind section based on user authentication
+                // Show/hide sections based on user authentication and binding status
                 if (currentUser) {
-                    bindSection.style.display = 'block';
-                    currentUserEmail.textContent = currentUser.email;
-                    populatePlayerDropdown(currentLeaderboardData);
+                    if (userBoundPlayer) {
+                        // User already has a bound player
+                        alreadyBoundSection.style.display = 'block';
+                        bindSection.style.display = 'none';
+                        boundPlayerName.textContent = userBoundPlayer.name;
+                    } else {
+                        // User can bind an account
+                        alreadyBoundSection.style.display = 'none';
+                        bindSection.style.display = 'block';
+                        currentUserEmail.textContent = currentUser.email;
+                        populatePlayerDropdown(currentLeaderboardData);
+                    }
                 } else {
+                    alreadyBoundSection.style.display = 'none';
                     bindSection.style.display = 'none';
                 }
                 
@@ -1434,9 +1519,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
