@@ -452,7 +452,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #1a1a2e;
             z-index: 2000;
             flex-direction: column;
             justify-content: center;
@@ -460,41 +460,29 @@
             color: white;
         }
 
-        .game-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .game-header h2 {
-            font-size: 3rem;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        .game-content {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 600px;
-            width: 90%;
-            text-align: center;
+        .game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 200px;
         }
 
         .game-stats {
-            display: flex;
-            justify-content: space-around;
-            margin: 20px 0;
+            margin-bottom: 15px;
         }
 
         .stat {
-            text-align: center;
+            margin-bottom: 8px;
         }
 
         .stat-value {
-            font-size: 2rem;
+            font-size: 1.2rem;
             font-weight: bold;
-            margin-bottom: 5px;
+            color: #4cd137;
         }
 
         .stat-label {
@@ -502,27 +490,41 @@
             opacity: 0.8;
         }
 
+        .health-bar-container {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .health-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ffa502);
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+
         .game-controls {
             display: flex;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 20px;
+            gap: 10px;
+            margin-top: 15px;
         }
 
         .game-btn {
             background: rgba(255, 255, 255, 0.2);
             color: white;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 10px;
-            padding: 10px 20px;
-            font-size: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
             cursor: pointer;
             transition: all 0.3s;
         }
 
         .game-btn:hover {
             background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
         }
 
         .exit-game-btn {
@@ -530,8 +532,45 @@
             border-color: rgba(255, 107, 107, 0.5);
         }
 
-        .exit-game-btn:hover {
-            background: rgba(255, 107, 107, 0.9);
+        .game-canvas {
+            border: 3px solid #4a6491;
+            border-radius: 10px;
+            background: #162447;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .controls-info h3 {
+            margin-bottom: 10px;
+            color: #4cd137;
+        }
+
+        .controls-list {
+            list-style: none;
+        }
+
+        .controls-list li {
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .key {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 8px;
+            font-family: monospace;
         }
 
         /* Modal Styles */
@@ -800,9 +839,14 @@
                 gap: 10px;
             }
             
-            .game-stats {
-                flex-direction: column;
-                gap: 15px;
+            .game-ui, .controls-info {
+                position: relative;
+                margin: 10px;
+            }
+            
+            .game-canvas {
+                width: 95%;
+                height: auto;
             }
         }
     </style>
@@ -870,33 +914,41 @@
 
     <!-- Game Container -->
     <div class="game-container" id="gameContainer">
-        <div class="game-header">
-            <h2>Adventure World</h2>
-            <p>Embark on an epic journey to earn points and climb the leaderboard!</p>
-        </div>
-        <div class="game-content">
+        <div class="game-ui">
             <div class="game-stats">
                 <div class="stat">
-                    <div class="stat-value" id="gameScore">0</div>
                     <div class="stat-label">Score</div>
+                    <div class="stat-value" id="gameScore">0</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value" id="gameLevel">1</div>
                     <div class="stat-label">Level</div>
+                    <div class="stat-value" id="gameLevel">1</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-value" id="gameTime">60</div>
-                    <div class="stat-label">Seconds</div>
+                    <div class="stat-label">Health</div>
+                    <div class="health-bar-container">
+                        <div class="health-bar" id="healthBar" style="width: 100%"></div>
+                    </div>
                 </div>
-            </div>
-            <div id="gameMessage">
-                <p>Click the buttons to earn points! Each click gives you points based on your current level.</p>
+                <div class="stat">
+                    <div class="stat-label">Damage</div>
+                    <div class="stat-value" id="gameDamage">10</div>
+                </div>
             </div>
             <div class="game-controls">
-                <button class="game-btn" id="actionBtn">Adventure!</button>
-                <button class="game-btn" id="upgradeBtn">Upgrade (Cost: 100)</button>
                 <button class="game-btn exit-game-btn" id="exitGameBtn">Exit World</button>
             </div>
+        </div>
+
+        <canvas class="game-canvas" id="gameCanvas" width="800" height="600"></canvas>
+
+        <div class="controls-info">
+            <h3>Controls</h3>
+            <ul class="controls-list">
+                <li><span class="key">WASD</span> Move character</li>
+                <li><span class="key">SPACE</span> Attack</li>
+                <li><span class="key">ESC</span> Pause/Exit</li>
+            </ul>
         </div>
     </div>
 
@@ -999,11 +1051,11 @@
         const gameContainer = document.getElementById('gameContainer');
         const gameScore = document.getElementById('gameScore');
         const gameLevel = document.getElementById('gameLevel');
-        const gameTime = document.getElementById('gameTime');
-        const gameMessage = document.getElementById('gameMessage');
-        const actionBtn = document.getElementById('actionBtn');
-        const upgradeBtn = document.getElementById('upgradeBtn');
+        const healthBar = document.getElementById('healthBar');
+        const gameDamage = document.getElementById('gameDamage');
         const exitGameBtn = document.getElementById('exitGameBtn');
+        const gameCanvas = document.getElementById('gameCanvas');
+        const ctx = gameCanvas.getContext('2d');
 
         // Track authentication state
         let isAuthenticated = false;
@@ -1015,11 +1067,23 @@
         let gameState = {
             score: 0,
             level: 1,
-            timeLeft: 60,
-            pointsPerClick: 1,
-            upgradeCost: 100,
+            health: 100,
+            maxHealth: 100,
+            damage: 10,
             isPlaying: false,
-            gameTimer: null
+            player: {
+                x: 400,
+                y: 300,
+                size: 20,
+                speed: 5,
+                color: '#4cd137',
+                lastAttack: 0,
+                attackCooldown: 500 // ms
+            },
+            enemies: [],
+            projectiles: [],
+            keys: {},
+            lastTime: 0
         };
         
         // Firebase variables
@@ -1242,95 +1306,311 @@
 
         // Game Functions
         function startGame() {
+            // Reset game state
             gameState = {
                 score: 0,
                 level: 1,
-                timeLeft: 60,
-                pointsPerClick: 1,
-                upgradeCost: 100,
+                health: 100,
+                maxHealth: 100,
+                damage: 10,
                 isPlaying: true,
-                gameTimer: null
+                player: {
+                    x: 400,
+                    y: 300,
+                    size: 20,
+                    speed: 5,
+                    color: '#4cd137',
+                    lastAttack: 0,
+                    attackCooldown: 500
+                },
+                enemies: [],
+                projectiles: [],
+                keys: {},
+                lastTime: performance.now()
             };
             
             updateGameUI();
             gameContainer.style.display = 'flex';
             
-            // Start game timer
-            gameState.gameTimer = setInterval(() => {
-                gameState.timeLeft--;
-                updateGameUI();
-                
-                if (gameState.timeLeft <= 0) {
-                    endGame();
-                }
-            }, 1000);
+            // Start game loop
+            gameState.lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+            
+            // Spawn initial enemies
+            spawnEnemies(5);
         }
 
         function updateGameUI() {
             gameScore.textContent = gameState.score;
             gameLevel.textContent = gameState.level;
-            gameTime.textContent = gameState.timeLeft;
-            upgradeBtn.textContent = `Upgrade (Cost: ${gameState.upgradeCost})`;
-            
-            // Update upgrade button state
-            upgradeBtn.disabled = gameState.score < gameState.upgradeCost;
+            gameDamage.textContent = gameState.damage;
+            healthBar.style.width = `${(gameState.health / gameState.maxHealth) * 100}%`;
         }
 
-        function performAction() {
+        function gameLoop(currentTime) {
             if (!gameState.isPlaying) return;
             
-            gameState.score += gameState.pointsPerClick;
-            updateGameUI();
+            const deltaTime = currentTime - gameState.lastTime;
+            gameState.lastTime = currentTime;
             
-            // Show floating text effect
-            showFloatingText(`+${gameState.pointsPerClick}`);
+            // Clear canvas
+            ctx.fillStyle = '#162447';
+            ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+            
+            // Update game state
+            updatePlayer(deltaTime);
+            updateEnemies(deltaTime);
+            updateProjectiles(deltaTime);
+            
+            // Draw everything
+            drawPlayer();
+            drawEnemies();
+            drawProjectiles();
+            
+            // Continue game loop
+            requestAnimationFrame(gameLoop);
         }
 
-        function upgrade() {
-            if (!gameState.isPlaying || gameState.score < gameState.upgradeCost) return;
+        function updatePlayer(deltaTime) {
+            // Movement
+            if (gameState.keys['KeyW'] || gameState.keys['ArrowUp']) {
+                gameState.player.y -= gameState.player.speed;
+            }
+            if (gameState.keys['KeyS'] || gameState.keys['ArrowDown']) {
+                gameState.player.y += gameState.player.speed;
+            }
+            if (gameState.keys['KeyA'] || gameState.keys['ArrowLeft']) {
+                gameState.player.x -= gameState.player.speed;
+            }
+            if (gameState.keys['KeyD'] || gameState.keys['ArrowRight']) {
+                gameState.player.x += gameState.player.speed;
+            }
             
-            gameState.score -= gameState.upgradeCost;
-            gameState.level++;
-            gameState.pointsPerClick = Math.floor(gameState.pointsPerClick * 1.5);
-            gameState.upgradeCost = Math.floor(gameState.upgradeCost * 2);
+            // Keep player in bounds
+            gameState.player.x = Math.max(gameState.player.size, Math.min(gameCanvas.width - gameState.player.size, gameState.player.x));
+            gameState.player.y = Math.max(gameState.player.size, Math.min(gameCanvas.height - gameState.player.size, gameState.player.y));
             
-            updateGameUI();
-            showFloatingText('Level Up!', '#ffd700');
+            // Attack with spacebar
+            if (gameState.keys['Space'] && currentTime - gameState.player.lastAttack > gameState.player.attackCooldown) {
+                attack();
+                gameState.player.lastAttack = currentTime;
+            }
         }
 
-        function showFloatingText(text, color = '#ffffff') {
-            const floatingText = document.createElement('div');
-            floatingText.textContent = text;
-            floatingText.style.position = 'absolute';
-            floatingText.style.color = color;
-            floatingText.style.fontWeight = 'bold';
-            floatingText.style.fontSize = '1.2rem';
-            floatingText.style.pointerEvents = 'none';
-            floatingText.style.animation = 'floatUp 1s ease-out forwards';
+        function attack() {
+            // Create projectiles in four directions
+            const directions = [
+                { x: 1, y: 0 },   // Right
+                { x: -1, y: 0 },  // Left
+                { x: 0, y: 1 },   // Down
+                { x: 0, y: -1 }   // Up
+            ];
             
-            // Random position near the action button
-            const actionBtnRect = actionBtn.getBoundingClientRect();
-            floatingText.style.left = `${actionBtnRect.left + Math.random() * 100 - 50}px`;
-            floatingText.style.top = `${actionBtnRect.top - 20}px`;
+            directions.forEach(dir => {
+                gameState.projectiles.push({
+                    x: gameState.player.x,
+                    y: gameState.player.y,
+                    vx: dir.x * 10,
+                    vy: dir.y * 10,
+                    size: 8,
+                    color: '#ff9ff3',
+                    damage: gameState.damage,
+                    lifetime: 1000 // ms
+                });
+            });
+        }
+
+        function updateEnemies(deltaTime) {
+            // Move enemies toward player
+            gameState.enemies.forEach(enemy => {
+                const dx = gameState.player.x - enemy.x;
+                const dy = gameState.player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {
+                    enemy.x += (dx / distance) * enemy.speed;
+                    enemy.y += (dy / distance) * enemy.speed;
+                }
+                
+                // Check collision with player
+                if (distance < gameState.player.size + enemy.size) {
+                    gameState.health -= enemy.damage;
+                    enemy.health = 0; // Enemy dies on contact
+                    
+                    if (gameState.health <= 0) {
+                        gameOver();
+                    }
+                }
+            });
             
-            document.body.appendChild(floatingText);
+            // Remove dead enemies and spawn new ones
+            gameState.enemies = gameState.enemies.filter(enemy => enemy.health > 0);
             
-            // Remove after animation
+            if (gameState.enemies.length < 5 + gameState.level) {
+                spawnEnemies(1);
+            }
+        }
+
+        function updateProjectiles(deltaTime) {
+            gameState.projectiles.forEach(projectile => {
+                projectile.x += projectile.vx;
+                projectile.y += projectile.vy;
+                projectile.lifetime -= deltaTime;
+                
+                // Check collision with enemies
+                gameState.enemies.forEach(enemy => {
+                    const dx = projectile.x - enemy.x;
+                    const dy = projectile.y - enemy.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < projectile.size + enemy.size) {
+                        enemy.health -= projectile.damage;
+                        projectile.lifetime = 0;
+                        
+                        if (enemy.health <= 0) {
+                            gameState.score += 10 * gameState.level;
+                            checkLevelUp();
+                        }
+                    }
+                });
+            });
+            
+            // Remove expired projectiles
+            gameState.projectiles = gameState.projectiles.filter(p => p.lifetime > 0);
+        }
+
+        function spawnEnemies(count) {
+            for (let i = 0; i < count; i++) {
+                // Spawn enemy at random edge
+                let x, y;
+                if (Math.random() < 0.5) {
+                    x = Math.random() < 0.5 ? -20 : gameCanvas.width + 20;
+                    y = Math.random() * gameCanvas.height;
+                } else {
+                    x = Math.random() * gameCanvas.width;
+                    y = Math.random() < 0.5 ? -20 : gameCanvas.height + 20;
+                }
+                
+                const enemyLevel = Math.floor(Math.random() * gameState.level) + 1;
+                
+                gameState.enemies.push({
+                    x: x,
+                    y: y,
+                    size: 15 + enemyLevel * 2,
+                    speed: 1 + Math.random() * 1.5,
+                    color: enemyLevel === 1 ? '#ff6b6b' : 
+                           enemyLevel === 2 ? '#ff9ff3' : 
+                           enemyLevel === 3 ? '#f368e0' : '#ff3838',
+                    health: 20 + enemyLevel * 10,
+                    maxHealth: 20 + enemyLevel * 10,
+                    damage: 5 + enemyLevel * 2,
+                    level: enemyLevel
+                });
+            }
+        }
+
+        function checkLevelUp() {
+            const neededScore = gameState.level * 100;
+            if (gameState.score >= neededScore) {
+                gameState.level++;
+                gameState.maxHealth = 100 + (gameState.level - 1) * 20;
+                gameState.health = gameState.maxHealth; // Full heal on level up
+                gameState.damage = 10 + (gameState.level - 1) * 5;
+                updateGameUI();
+                
+                // Visual effect for level up
+                showLevelUpEffect();
+            }
+        }
+
+        function showLevelUpEffect() {
+            // Create level up text
+            const levelUpText = document.createElement('div');
+            levelUpText.textContent = `LEVEL ${gameState.level}!`;
+            levelUpText.style.position = 'absolute';
+            levelUpText.style.color = '#ffd700';
+            levelUpText.style.fontSize = '3rem';
+            levelUpText.style.fontWeight = 'bold';
+            levelUpText.style.top = '50%';
+            levelUpText.style.left = '50%';
+            levelUpText.style.transform = 'translate(-50%, -50%)';
+            levelUpText.style.zIndex = '100';
+            levelUpText.style.animation = 'fadeOut 2s forwards';
+            
+            gameContainer.appendChild(levelUpText);
+            
             setTimeout(() => {
-                document.body.removeChild(floatingText);
-            }, 1000);
+                gameContainer.removeChild(levelUpText);
+            }, 2000);
         }
 
-        function endGame() {
-            gameState.isPlaying = false;
-            clearInterval(gameState.gameTimer);
+        function drawPlayer() {
+            ctx.fillStyle = gameState.player.color;
+            ctx.beginPath();
+            ctx.arc(gameState.player.x, gameState.player.y, gameState.player.size, 0, Math.PI * 2);
+            ctx.fill();
             
-            gameMessage.innerHTML = `
-                <h3>Game Over!</h3>
-                <p>Final Score: ${gameState.score}</p>
-                <p>You reached Level ${gameState.level}</p>
-                ${userBoundPlayer ? '<p>Your score has been added to your bound player!</p>' : '<p>Sign in and bind an account to save your scores!</p>'}
-            `;
+            // Draw player direction indicator
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(gameState.player.x, gameState.player.y);
+            ctx.lineTo(gameState.player.x, gameState.player.y - gameState.player.size - 5);
+            ctx.stroke();
+        }
+
+        function drawEnemies() {
+            gameState.enemies.forEach(enemy => {
+                // Draw enemy body
+                ctx.fillStyle = enemy.color;
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw enemy health bar
+                const barWidth = enemy.size * 2;
+                const barHeight = 4;
+                const barX = enemy.x - barWidth / 2;
+                const barY = enemy.y - enemy.size - 8;
+                
+                ctx.fillStyle = '#333';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                ctx.fillStyle = '#4cd137';
+                ctx.fillRect(barX, barY, barWidth * (enemy.health / enemy.maxHealth), barHeight);
+                
+                // Draw enemy level
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Lv.${enemy.level}`, enemy.x, enemy.y + enemy.size + 12);
+            });
+        }
+
+        function drawProjectiles() {
+            gameState.projectiles.forEach(projectile => {
+                ctx.fillStyle = projectile.color;
+                ctx.beginPath();
+                ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function gameOver() {
+            gameState.isPlaying = false;
+            
+            // Draw game over screen
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', gameCanvas.width / 2, gameCanvas.height / 2 - 50);
+            
+            ctx.font = '24px Arial';
+            ctx.fillText(`Final Score: ${gameState.score}`, gameCanvas.width / 2, gameCanvas.height / 2);
+            ctx.fillText(`Level Reached: ${gameState.level}`, gameCanvas.width / 2, gameCanvas.height / 2 + 40);
             
             // Save score if user has a bound player
             if (userBoundPlayer) {
@@ -1339,10 +1619,13 @@
         }
 
         function exitGame() {
-            if (gameState.isPlaying) {
-                endGame();
-            }
+            gameState.isPlaying = false;
             gameContainer.style.display = 'none';
+            
+            // Save score if game was in progress
+            if (gameState.score > 0 && userBoundPlayer) {
+                saveGameScore();
+            }
         }
 
         async function saveGameScore() {
@@ -1364,12 +1647,31 @@
             }
         }
 
-        // Add CSS animation for floating text
+        // Keyboard event handlers
+        function handleKeyDown(e) {
+            gameState.keys[e.code] = true;
+            
+            // Prevent spacebar from scrolling page
+            if (e.code === 'Space' && gameState.isPlaying) {
+                e.preventDefault();
+            }
+            
+            // ESC to exit game
+            if (e.code === 'Escape') {
+                exitGame();
+            }
+        }
+
+        function handleKeyUp(e) {
+            gameState.keys[e.code] = false;
+        }
+
+        // Add CSS animation for level up
         const style = document.createElement('style');
         style.textContent = `
-            @keyframes floatUp {
-                0% { transform: translateY(0); opacity: 1; }
-                100% { transform: translateY(-50px); opacity: 0; }
+            @keyframes fadeOut {
+                0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
             }
         `;
         document.head.appendChild(style);
@@ -1814,9 +2116,11 @@
             
             // Game functionality
             enterWorldBtn.addEventListener('click', startGame);
-            actionBtn.addEventListener('click', performAction);
-            upgradeBtn.addEventListener('click', upgrade);
             exitGameBtn.addEventListener('click', exitGame);
+            
+            // Keyboard controls
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
             
             // Allow pressing Enter to verify password
             passwordInput.addEventListener('keypress', (e) => {
@@ -1838,6 +2142,7 @@
     </script>
 </body>
 </html>
+
 
 
 
