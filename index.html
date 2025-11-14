@@ -440,6 +440,18 @@
             background: linear-gradient(45deg, #ff5252, #ff8c00);
         }
 
+        .enter-world-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .enter-world-btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
         .enter-world-btn:active {
             transform: translateY(-1px);
         }
@@ -904,6 +916,7 @@
         <!-- Enter World Button -->
         <div style="text-align: center; padding: 20px;">
             <button class="enter-world-btn" id="enterWorldBtn">Enter World</button>
+            <div id="enterWorldMessage" style="margin-top: 10px; color: #dc3545; font-weight: 500;"></div>
         </div>
     </div>
     
@@ -1048,6 +1061,7 @@
         const bindAccountBtn = document.getElementById('bindAccountBtn');
         const boundPlayerName = document.getElementById('boundPlayerName');
         const enterWorldBtn = document.getElementById('enterWorldBtn');
+        const enterWorldMessage = document.getElementById('enterWorldMessage');
         const gameContainer = document.getElementById('gameContainer');
         const gameScore = document.getElementById('gameScore');
         const gameLevel = document.getElementById('gameLevel');
@@ -1154,6 +1168,17 @@
             }
         }
 
+        // Update Enter World button state based on account binding
+        function updateEnterWorldButton() {
+            if (userBoundPlayer) {
+                enterWorldBtn.disabled = false;
+                enterWorldMessage.textContent = "";
+            } else {
+                enterWorldBtn.disabled = true;
+                enterWorldMessage.textContent = "You need to link your account to a player to enter the world";
+            }
+        }
+
         // Render authentication UI
         async function renderAuthUI(user) {
             currentUser = user;
@@ -1206,6 +1231,9 @@
                 // Add event listener for sign in
                 document.getElementById('signInBtn').addEventListener('click', handleSignIn);
             }
+            
+            // Update Enter World button state
+            updateEnterWorldButton();
         }
 
         // Handle Google Sign-In
@@ -1310,13 +1338,22 @@
 
         // Game Functions
         function startGame() {
-            // Reset game state
+            // Check if user has a bound player
+            if (!userBoundPlayer) {
+                alert("You need to link your account to a player to enter the world");
+                return;
+            }
+            
+            // Calculate player level from leaderboard score
+            const playerLevel = calculateLevelAndProgress(userBoundPlayer.score).level;
+            
+            // Reset game state with player's stats based on their level
             gameState = {
                 score: 0,
-                level: 1,
-                health: 100,
-                maxHealth: 100,
-                damage: 10,
+                level: playerLevel,
+                health: 100 + (playerLevel - 1) * 20, // More health for higher levels
+                maxHealth: 100 + (playerLevel - 1) * 20,
+                damage: 10 + (playerLevel - 1) * 5, // More damage for higher levels
                 isPlaying: true,
                 player: {
                     x: 400,
@@ -1325,7 +1362,7 @@
                     speed: 5,
                     color: '#4cd137',
                     lastAttack: 0,
-                    attackCooldown: 500
+                    attackCooldown: 500 - (playerLevel - 1) * 25 // Faster attacks for higher levels (min 200ms)
                 },
                 enemies: [],
                 projectiles: [],
@@ -1345,7 +1382,7 @@
             requestAnimationFrame(gameLoop);
             
             // Spawn initial enemies
-            spawnEnemies(5);
+            spawnEnemies(3 + Math.floor(playerLevel / 3));
         }
 
         function updateGameUI() {
@@ -1475,7 +1512,7 @@
             // Remove dead enemies and spawn new ones
             gameState.enemies = gameState.enemies.filter(enemy => enemy.health > 0);
             
-            if (gameState.enemies.length < 5 + gameState.level) {
+            if (gameState.enemies.length < 3 + Math.floor(gameState.level / 2)) {
                 spawnEnemies(1);
             }
         }
@@ -1518,26 +1555,28 @@
                 const x = gameState.player.x + Math.cos(angle) * distance;
                 const y = gameState.player.y + Math.sin(angle) * distance;
                 
-                const enemyLevel = Math.floor(Math.random() * gameState.level) + 1;
+                // Enemy level scales more slowly with player level
+                const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
                 
                 gameState.enemies.push({
                     x: x,
                     y: y,
-                    size: 15 + enemyLevel * 2,
+                    size: 15 + enemyLevel * 1.5, // Slower size growth
                     speed: 1 + Math.random() * 1.5,
                     color: enemyLevel === 1 ? '#ff6b6b' : 
                            enemyLevel === 2 ? '#ff9ff3' : 
                            enemyLevel === 3 ? '#f368e0' : '#ff3838',
-                    health: 20 + enemyLevel * 10,
-                    maxHealth: 20 + enemyLevel * 10,
-                    damage: 5 + enemyLevel * 2,
+                    health: 20 + enemyLevel * 8, // Slower health growth
+                    maxHealth: 20 + enemyLevel * 8,
+                    damage: 5 + enemyLevel * 1.5, // Slower damage growth
                     level: enemyLevel
                 });
             }
         }
 
         function checkLevelUp() {
-            const neededScore = gameState.level * 100;
+            // Make leveling up harder - require more score per level
+            const neededScore = gameState.level * 150;
             if (gameState.score >= neededScore) {
                 gameState.level++;
                 gameState.maxHealth = 100 + (gameState.level - 1) * 20;
