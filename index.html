@@ -1366,7 +1366,7 @@
             ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
             
             // Update game state
-            updatePlayer(deltaTime);
+            updatePlayer(deltaTime, currentTime);
             updateEnemies(deltaTime);
             updateProjectiles(deltaTime);
             
@@ -1400,7 +1400,7 @@
             // For now, we'll allow the camera to move freely
         }
 
-        function updatePlayer(deltaTime) {
+        function updatePlayer(deltaTime, currentTime) {
             // Movement
             if (gameState.keys['KeyW'] || gameState.keys['ArrowUp']) {
                 gameState.player.y -= gameState.player.speed;
@@ -1419,7 +1419,7 @@
             // gameState.player.x = Math.max(gameState.player.size, Math.min(gameCanvas.width - gameState.player.size, gameState.player.x));
             // gameState.player.y = Math.max(gameState.player.size, Math.min(gameCanvas.height - gameState.player.size, gameState.player.y));
             
-            // Attack with spacebar
+            // Attack with spacebar - FIXED: Pass currentTime correctly
             if (gameState.keys['Space'] && currentTime - gameState.player.lastAttack > gameState.player.attackCooldown) {
                 attack();
                 gameState.player.lastAttack = currentTime;
@@ -1481,20 +1481,21 @@
         }
 
         function updateProjectiles(deltaTime) {
-            gameState.projectiles.forEach((projectile, index) => {
+            // Update projectile positions and lifetimes
+            gameState.projectiles.forEach(projectile => {
                 projectile.x += projectile.vx;
                 projectile.y += projectile.vy;
                 projectile.lifetime -= deltaTime;
                 
                 // Check collision with enemies
-                gameState.enemies.forEach((enemy, enemyIndex) => {
+                gameState.enemies.forEach(enemy => {
                     const dx = projectile.x - enemy.x;
                     const dy = projectile.y - enemy.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
                     if (distance < projectile.size + enemy.size) {
                         enemy.health -= projectile.damage;
-                        projectile.lifetime = 0;
+                        projectile.lifetime = 0; // Mark projectile for removal
                         
                         if (enemy.health <= 0) {
                             gameState.score += 10 * gameState.level;
@@ -2165,3 +2166,5 @@
     </script>
 </body>
 </html>
+
+
