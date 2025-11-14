@@ -1033,7 +1033,7 @@
 
     <script>
         // Password for authentication - UPDATED
-        const correctPassword = "452389";
+        const correctPassword = "67a=72b*3x^2/areug45uay";
 
         // DOM elements
         const leaderboardBody = document.getElementById('leaderboardBody');
@@ -1349,8 +1349,8 @@
             
             // Reset game state with player's stats based on their level
             gameState = {
-                score: 0,
-                level: playerLevel,
+                score: 0, // Session score only, doesn't affect leaderboard
+                level: playerLevel, // Fixed level based on leaderboard
                 health: 100 + (playerLevel - 1) * 20, // More health for higher levels
                 maxHealth: 100 + (playerLevel - 1) * 20,
                 damage: 10 + (playerLevel - 1) * 5, // More damage for higher levels
@@ -1535,8 +1535,9 @@
                         projectile.lifetime = 0; // Mark projectile for removal
                         
                         if (enemy.health <= 0) {
+                            // Add to session score only, doesn't affect leaderboard
                             gameState.score += 10 * gameState.level;
-                            checkLevelUp();
+                            updateGameUI();
                         }
                     }
                 });
@@ -1572,42 +1573,6 @@
                     level: enemyLevel
                 });
             }
-        }
-
-        function checkLevelUp() {
-            // Make leveling up harder - require more score per level
-            const neededScore = gameState.level * 150;
-            if (gameState.score >= neededScore) {
-                gameState.level++;
-                gameState.maxHealth = 100 + (gameState.level - 1) * 20;
-                gameState.health = gameState.maxHealth; // Full heal on level up
-                gameState.damage = 10 + (gameState.level - 1) * 5;
-                updateGameUI();
-                
-                // Visual effect for level up
-                showLevelUpEffect();
-            }
-        }
-
-        function showLevelUpEffect() {
-            // Create level up text
-            const levelUpText = document.createElement('div');
-            levelUpText.textContent = `LEVEL ${gameState.level}!`;
-            levelUpText.style.position = 'absolute';
-            levelUpText.style.color = '#ffd700';
-            levelUpText.style.fontSize = '3rem';
-            levelUpText.style.fontWeight = 'bold';
-            levelUpText.style.top = '50%';
-            levelUpText.style.left = '50%';
-            levelUpText.style.transform = 'translate(-50%, -50%)';
-            levelUpText.style.zIndex = '100';
-            levelUpText.style.animation = 'fadeOut 2s forwards';
-            
-            gameContainer.appendChild(levelUpText);
-            
-            setTimeout(() => {
-                gameContainer.removeChild(levelUpText);
-            }, 2000);
         }
 
         function drawPlayer() {
@@ -1675,42 +1640,17 @@
             ctx.fillText('GAME OVER', gameCanvas.width / 2, gameCanvas.height / 2 - 50);
             
             ctx.font = '24px Arial';
-            ctx.fillText(`Final Score: ${gameState.score}`, gameCanvas.width / 2, gameCanvas.height / 2);
-            ctx.fillText(`Level Reached: ${gameState.level}`, gameCanvas.width / 2, gameCanvas.height / 2 + 40);
+            ctx.fillText(`Session Score: ${gameState.score}`, gameCanvas.width / 2, gameCanvas.height / 2);
+            ctx.fillText(`Your Level: ${gameState.level}`, gameCanvas.width / 2, gameCanvas.height / 2 + 40);
             
-            // Save score if user has a bound player
-            if (userBoundPlayer) {
-                saveGameScore();
-            }
+            // Note: We're not saving the score to the leaderboard anymore
         }
 
         function exitGame() {
             gameState.isPlaying = false;
             gameContainer.style.display = 'none';
             
-            // Save score if game was in progress
-            if (gameState.score > 0 && userBoundPlayer) {
-                saveGameScore();
-            }
-        }
-
-        async function saveGameScore() {
-            if (!userBoundPlayer) return;
-            
-            try {
-                const playerDoc = window.firebaseDoc(db, 'players', userBoundPlayer.id);
-                const newScore = userBoundPlayer.score + gameState.score;
-                
-                await window.firebaseUpdateDoc(playerDoc, {
-                    score: newScore,
-                    lastPlayed: new Date()
-                });
-                
-                showStatus(`Score added! Your total is now ${newScore}`);
-            } catch (error) {
-                console.error('Error saving score:', error);
-                showStatus('Error saving score: ' + error.message, false);
-            }
+            // Note: We're not saving the score to the leaderboard anymore
         }
 
         // Keyboard event handlers
@@ -1731,16 +1671,6 @@
         function handleKeyUp(e) {
             gameState.keys[e.code] = false;
         }
-
-        // Add CSS animation for level up
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeOut {
-                0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-                100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
-            }
-        `;
-        document.head.appendChild(style);
 
         // Initialize Firebase and leaderboard
         async function initLeaderboard() {
@@ -2205,5 +2135,4 @@
     </script>
 </body>
 </html>
-
 
