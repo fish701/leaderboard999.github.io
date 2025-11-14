@@ -1088,21 +1088,61 @@
             player: {
                 x: 400,
                 y: 300,
-                size: 20,
+                width: 32,
+                height: 48,
                 speed: 5,
-                color: '#4cd137',
                 lastAttack: 0,
-                attackCooldown: 500 // ms
+                attackCooldown: 500, // ms
+                direction: 'down', // 'up', 'down', 'left', 'right'
+                isMoving: false,
+                frame: 0,
+                frameCount: 0
             },
             enemies: [],
-            projectiles: [],
+            swingEffect: null,
             keys: {},
             lastTime: 0,
             camera: {
                 x: 0,
                 y: 0
-            }
+            },
+            tileSize: 32,
+            worldWidth: 1600,
+            worldHeight: 1200
         };
+        
+        // Game assets
+        const assets = {
+            player: {
+                idle: new Image(),
+                walk_up: new Image(),
+                walk_down: new Image()
+            },
+            enemy: {
+                up: new Image(),
+                down: new Image()
+            },
+            tile: new Image(),
+            swing_effect: new Image()
+        };
+        
+        // Load placeholder images (replace these with your actual image URLs)
+        function loadAssets() {
+            // Player sprites (replace with your actual GIF URLs)
+            assets.player.idle.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjNGNkMTM3Ii8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiMzM2EzMzMiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiMzM2EzMzMiLz4KPC9zdmc+';
+            assets.player.walk_up.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjNGNkMTM3Ii8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiMzM2EzMzMiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiMzM2EzMzMiLz4KPHBhdGggZD0iTTE2IDI0TDIwIDE2IiBzdHJva2U9IiMzM2EzMzMiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=';
+            assets.player.walk_down.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjNGNkMTM3Ii8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiMzM2EzMzMiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiMzM2EzMzMiLz4KPHBhdGggZD0iTTE2IDQwTDIwIDMyIiBzdHJva2U9IiMzM2EzMzMiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=';
+            
+            // Enemy sprites (replace with your actual PNG URLs)
+            assets.enemy.up.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjZmY2YjZiIi8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiM4MDAwMDAiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiM4MDAwMDAiLz4KPHBhdGggZD0iTTE2IDI0TDIwIDE2IiBzdHJva2U9IiM4MDAwMDAiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=';
+            assets.enemy.down.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjZmY2YjZiIi8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiM4MDAwMDAiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiM4MDAwMDAiLz4KPHBhdGggZD0iTTE2IDQwTDIwIDMyIiBzdHJva2U9IiM4MDAwMDAiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=';
+            
+            // Tile sprite (replace with your actual tile PNG URL)
+            assets.tile.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjMzA0MDYwIi8+CjxyZWN0IHg9IjgiIHk9IjgiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIGZpbGw9IiM0NTU1NzAiLz4KPHJlY3QgeD0iMjIiIHk9IjgiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIGZpbGw9IiM0NTU1NzAiLz4KPHJlY3QgeD0iOCIgeT0iMjIiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIGZpbGw9IiM0NTU1NzAiLz4KPHJlY3QgeD0iMjIiIHk9IjIyIiB3aWR0aD0iMiIgaGVpZ2h0PSIyIiBmaWxsPSIjNDU1NTcwIi8+Cjwvc3ZnPg==';
+            
+            // Swing effect sprite (replace with your actual GIF URL)
+            assets.swing_effect.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMjQiIGZpbGw9IiNmZjlmZjMiIGZpbGwtb3BhY2l0eT0iMC43Ii8+CjxwYXRoIGQ9Ik0xNiAzMkMzMiAxNiw0OCAzMiwzMiA0OCIgc3Ryb2tlPSIjZmY5ZmYzIiBzdHJva2Utd2lkdGg9IjQiLz4KPC9zdmc+';
+        }
         
         // Firebase variables
         let db;
@@ -1344,6 +1384,9 @@
                 return;
             }
             
+            // Load game assets
+            loadAssets();
+            
             // Calculate player level from leaderboard score
             const playerLevel = calculateLevelAndProgress(userBoundPlayer.score).level;
             
@@ -1358,20 +1401,27 @@
                 player: {
                     x: 400,
                     y: 300,
-                    size: 20,
+                    width: 32,
+                    height: 48,
                     speed: 5,
-                    color: '#4cd137',
                     lastAttack: 0,
-                    attackCooldown: 500 - (playerLevel - 1) * 25 // Faster attacks for higher levels (min 200ms)
+                    attackCooldown: 500 - (playerLevel - 1) * 25, // Faster attacks for higher levels (min 200ms)
+                    direction: 'down',
+                    isMoving: false,
+                    frame: 0,
+                    frameCount: 0
                 },
                 enemies: [],
-                projectiles: [],
+                swingEffect: null,
                 keys: {},
                 lastTime: performance.now(),
                 camera: {
                     x: 0,
                     y: 0
-                }
+                },
+                tileSize: 32,
+                worldWidth: 1600,
+                worldHeight: 1200
             };
             
             updateGameUI();
@@ -1405,7 +1455,7 @@
             // Update game state
             updatePlayer(deltaTime, currentTime);
             updateEnemies(deltaTime);
-            updateProjectiles(deltaTime);
+            updateSwingEffect(deltaTime);
             
             // Update camera to follow player
             updateCamera();
@@ -1417,9 +1467,10 @@
             ctx.translate(-gameState.camera.x, -gameState.camera.y);
             
             // Draw everything with camera offset
+            drawGround();
             drawPlayer();
             drawEnemies();
-            drawProjectiles();
+            drawSwingEffect();
             
             // Restore the canvas state
             ctx.restore();
@@ -1433,57 +1484,132 @@
             gameState.camera.x = gameState.player.x - gameCanvas.width / 2;
             gameState.camera.y = gameState.player.y - gameCanvas.height / 2;
             
-            // Clamp camera to world bounds (if needed)
-            // For now, we'll allow the camera to move freely
+            // Clamp camera to world bounds
+            gameState.camera.x = Math.max(0, Math.min(gameState.worldWidth - gameCanvas.width, gameState.camera.x));
+            gameState.camera.y = Math.max(0, Math.min(gameState.worldHeight - gameCanvas.height, gameState.camera.y));
+        }
+
+        function drawGround() {
+            const tileSize = gameState.tileSize;
+            const startX = Math.floor(gameState.camera.x / tileSize) * tileSize;
+            const startY = Math.floor(gameState.camera.y / tileSize) * tileSize;
+            const endX = startX + gameCanvas.width + tileSize;
+            const endY = startY + gameCanvas.height + tileSize;
+            
+            for (let x = startX; x < endX; x += tileSize) {
+                for (let y = startY; y < endY; y += tileSize) {
+                    ctx.drawImage(assets.tile, x, y, tileSize, tileSize);
+                }
+            }
         }
 
         function updatePlayer(deltaTime, currentTime) {
+            // Reset movement state
+            gameState.player.isMoving = false;
+            
             // Movement
             if (gameState.keys['KeyW'] || gameState.keys['ArrowUp']) {
                 gameState.player.y -= gameState.player.speed;
+                gameState.player.direction = 'up';
+                gameState.player.isMoving = true;
             }
             if (gameState.keys['KeyS'] || gameState.keys['ArrowDown']) {
                 gameState.player.y += gameState.player.speed;
+                gameState.player.direction = 'down';
+                gameState.player.isMoving = true;
             }
             if (gameState.keys['KeyA'] || gameState.keys['ArrowLeft']) {
                 gameState.player.x -= gameState.player.speed;
+                gameState.player.direction = 'left';
+                gameState.player.isMoving = true;
             }
             if (gameState.keys['KeyD'] || gameState.keys['ArrowRight']) {
                 gameState.player.x += gameState.player.speed;
+                gameState.player.direction = 'right';
+                gameState.player.isMoving = true;
             }
             
-            // Keep player in bounds (optional with camera)
-            // gameState.player.x = Math.max(gameState.player.size, Math.min(gameCanvas.width - gameState.player.size, gameState.player.x));
-            // gameState.player.y = Math.max(gameState.player.size, Math.min(gameCanvas.height - gameState.player.size, gameState.player.y));
+            // Keep player in world bounds
+            gameState.player.x = Math.max(gameState.player.width/2, Math.min(gameState.worldWidth - gameState.player.width/2, gameState.player.x));
+            gameState.player.y = Math.max(gameState.player.height/2, Math.min(gameState.worldHeight - gameState.player.height/2, gameState.player.y));
             
-            // Attack with spacebar - FIXED: Pass currentTime correctly
+            // Update animation frame
+            gameState.player.frameCount += deltaTime;
+            if (gameState.player.frameCount > 200) { // Change frame every 200ms
+                gameState.player.frame = (gameState.player.frame + 1) % 2; // Simple 2-frame animation
+                gameState.player.frameCount = 0;
+            }
+            
+            // Attack with spacebar
             if (gameState.keys['Space'] && currentTime - gameState.player.lastAttack > gameState.player.attackCooldown) {
-                attack();
+                swordSwing();
                 gameState.player.lastAttack = currentTime;
             }
         }
 
-        function attack() {
-            // Create projectiles in four directions
-            const directions = [
-                { x: 1, y: 0 },   // Right
-                { x: -1, y: 0 },  // Left
-                { x: 0, y: 1 },   // Down
-                { x: 0, y: -1 }   // Up
-            ];
+        function swordSwing() {
+            // Create sword swing effect
+            gameState.swingEffect = {
+                x: gameState.player.x,
+                y: gameState.player.y,
+                direction: gameState.player.direction,
+                progress: 0,
+                lifetime: 300 // ms
+            };
             
-            directions.forEach(dir => {
-                gameState.projectiles.push({
-                    x: gameState.player.x,
-                    y: gameState.player.y,
-                    vx: dir.x * 10,
-                    vy: dir.y * 10,
-                    size: 8,
-                    color: '#ff9ff3',
-                    damage: gameState.damage,
-                    lifetime: 1000 // ms
-                });
+            // Check for enemies in swing range
+            const swingRange = 50;
+            gameState.enemies.forEach(enemy => {
+                const dx = enemy.x - gameState.player.x;
+                const dy = enemy.y - gameState.player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < swingRange) {
+                    enemy.health -= gameState.damage;
+                    
+                    if (enemy.health <= 0) {
+                        // Add to session score only, doesn't affect leaderboard
+                        gameState.score += 10 * gameState.level;
+                        updateGameUI();
+                    }
+                }
             });
+        }
+
+        function updateSwingEffect(deltaTime) {
+            if (gameState.swingEffect) {
+                gameState.swingEffect.progress += deltaTime / gameState.swingEffect.lifetime;
+                
+                if (gameState.swingEffect.progress >= 1) {
+                    gameState.swingEffect = null;
+                }
+            }
+        }
+
+        function drawPlayer() {
+            let playerImg;
+            
+            if (gameState.player.isMoving) {
+                if (gameState.player.direction === 'up') {
+                    playerImg = assets.player.walk_up;
+                } else if (gameState.player.direction === 'down') {
+                    playerImg = assets.player.walk_down;
+                } else {
+                    // For left/right, use the down sprite (you can add left/right sprites later)
+                    playerImg = assets.player.walk_down;
+                }
+            } else {
+                playerImg = assets.player.idle;
+            }
+            
+            // Draw player sprite
+            ctx.drawImage(
+                playerImg, 
+                gameState.player.x - gameState.player.width/2, 
+                gameState.player.y - gameState.player.height/2,
+                gameState.player.width,
+                gameState.player.height
+            );
         }
 
         function updateEnemies(deltaTime) {
@@ -1496,10 +1622,13 @@
                 if (distance > 0) {
                     enemy.x += (dx / distance) * enemy.speed;
                     enemy.y += (dy / distance) * enemy.speed;
+                    
+                    // Update enemy direction
+                    enemy.direction = dy < 0 ? 'up' : 'down';
                 }
                 
                 // Check collision with player
-                if (distance < gameState.player.size + enemy.size) {
+                if (distance < gameState.player.width/2 + enemy.size/2) {
                     gameState.health -= enemy.damage;
                     updateGameUI(); // FIX: Update health bar when taking damage
                     
@@ -1517,89 +1646,22 @@
             }
         }
 
-        function updateProjectiles(deltaTime) {
-            // Update projectile positions and lifetimes
-            gameState.projectiles.forEach(projectile => {
-                projectile.x += projectile.vx;
-                projectile.y += projectile.vy;
-                projectile.lifetime -= deltaTime;
-                
-                // Check collision with enemies
-                gameState.enemies.forEach(enemy => {
-                    const dx = projectile.x - enemy.x;
-                    const dy = projectile.y - enemy.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance < projectile.size + enemy.size) {
-                        enemy.health -= projectile.damage;
-                        projectile.lifetime = 0; // Mark projectile for removal
-                        
-                        if (enemy.health <= 0) {
-                            // Add to session score only, doesn't affect leaderboard
-                            gameState.score += 10 * gameState.level;
-                            updateGameUI();
-                        }
-                    }
-                });
-            });
-            
-            // Remove expired projectiles
-            gameState.projectiles = gameState.projectiles.filter(p => p.lifetime > 0);
-        }
-
-        function spawnEnemies(count) {
-            for (let i = 0; i < count; i++) {
-                // Spawn enemy at random position around player
-                const angle = Math.random() * Math.PI * 2;
-                const distance = 400 + Math.random() * 200;
-                
-                const x = gameState.player.x + Math.cos(angle) * distance;
-                const y = gameState.player.y + Math.sin(angle) * distance;
-                
-                // Enemy level scales more slowly with player level
-                const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
-                
-                gameState.enemies.push({
-                    x: x,
-                    y: y,
-                    size: 15 + enemyLevel * 1.5, // Slower size growth
-                    speed: 1 + Math.random() * 1.5,
-                    color: enemyLevel === 1 ? '#ff6b6b' : 
-                           enemyLevel === 2 ? '#ff9ff3' : 
-                           enemyLevel === 3 ? '#f368e0' : '#ff3838',
-                    health: 20 + enemyLevel * 8, // Slower health growth
-                    maxHealth: 20 + enemyLevel * 8,
-                    damage: 5 + enemyLevel * 1.5, // Slower damage growth
-                    level: enemyLevel
-                });
-            }
-        }
-
-        function drawPlayer() {
-            ctx.fillStyle = gameState.player.color;
-            ctx.beginPath();
-            ctx.arc(gameState.player.x, gameState.player.y, gameState.player.size, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw player direction indicator
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(gameState.player.x, gameState.player.y);
-            ctx.lineTo(gameState.player.x, gameState.player.y - gameState.player.size - 5);
-            ctx.stroke();
-        }
-
         function drawEnemies() {
             gameState.enemies.forEach(enemy => {
-                // Draw enemy body
-                ctx.fillStyle = enemy.color;
-                ctx.beginPath();
-                ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
-                ctx.fill();
+                // Choose enemy sprite based on direction
+                const enemyImg = enemy.direction === 'up' ? assets.enemy.up : assets.enemy.down;
+                
+                // Draw enemy sprite
+                ctx.drawImage(
+                    enemyImg,
+                    enemy.x - enemy.size/2,
+                    enemy.y - enemy.size/2,
+                    enemy.size,
+                    enemy.size * 1.5 // Adjust height for character proportions
+                );
                 
                 // Draw enemy health bar
-                const barWidth = enemy.size * 2;
+                const barWidth = enemy.size;
                 const barHeight = 4;
                 const barX = enemy.x - barWidth / 2;
                 const barY = enemy.y - enemy.size - 8;
@@ -1618,13 +1680,60 @@
             });
         }
 
-        function drawProjectiles() {
-            gameState.projectiles.forEach(projectile => {
-                ctx.fillStyle = projectile.color;
-                ctx.beginPath();
-                ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
-                ctx.fill();
-            });
+        function drawSwingEffect() {
+            if (gameState.swingEffect) {
+                const progress = gameState.swingEffect.progress;
+                const size = 40 + progress * 30; // Grow during swing
+                const opacity = 1 - progress; // Fade out during swing
+                
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                
+                // Position based on player direction
+                let offsetX = 0, offsetY = 0;
+                switch (gameState.swingEffect.direction) {
+                    case 'up': offsetY = -30; break;
+                    case 'down': offsetY = 30; break;
+                    case 'left': offsetX = -30; break;
+                    case 'right': offsetX = 30; break;
+                }
+                
+                ctx.drawImage(
+                    assets.swing_effect,
+                    gameState.swingEffect.x + offsetX - size/2,
+                    gameState.swingEffect.y + offsetY - size/2,
+                    size,
+                    size
+                );
+                
+                ctx.restore();
+            }
+        }
+
+        function spawnEnemies(count) {
+            for (let i = 0; i < count; i++) {
+                // Spawn enemy at random position around player
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 400 + Math.random() * 200;
+                
+                const x = gameState.player.x + Math.cos(angle) * distance;
+                const y = gameState.player.y + Math.sin(angle) * distance;
+                
+                // Enemy level scales more slowly with player level
+                const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
+                
+                gameState.enemies.push({
+                    x: Math.max(20, Math.min(gameState.worldWidth - 20, x)),
+                    y: Math.max(20, Math.min(gameState.worldHeight - 20, y)),
+                    size: 20 + enemyLevel * 1.5, // Slower size growth
+                    speed: 1 + Math.random() * 1.5,
+                    health: 20 + enemyLevel * 8, // Slower health growth
+                    maxHealth: 20 + enemyLevel * 8,
+                    damage: 5 + enemyLevel * 1.5, // Slower damage growth
+                    level: enemyLevel,
+                    direction: 'down'
+                });
+            }
         }
 
         function gameOver() {
@@ -2135,5 +2244,6 @@
     </script>
 </body>
 </html>
+
 
 
