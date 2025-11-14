@@ -1126,22 +1126,32 @@
             swing_effect: new Image()
         };
         
-        // Load placeholder images (replace these with your actual image URLs)
+        // Load images directly from the same folder
         function loadAssets() {
-            // Player sprites (replace with your actual GIF URLs)
-            assets.player.idle.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjNGNkMTM3Ii8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiMzM2EzMzMiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiMzM2EzMzMiLz4KPC9zdmc+';
-            assets.player.walk_up.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjNGNkMTM3Ii8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiMzM2EzMzMiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiMzM2EzMzMiLz4KPHBhdGggZD0iTTE2IDI0TDIwIDE2IiBzdHJva2U9IiMzM2EzMzMiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=';
-            assets.player.walk_down.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjNGNkMTM3Ii8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiMzM2EzMzMiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiMzM2EzMzMiLz4KPHBhdGggZD0iTTE2IDQwTDIwIDMyIiBzdHJva2U9IiMzM2EzMzMiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=';
+            // Player sprites
+            assets.player.idle.src = 'idle.gif';
+            assets.player.walk_up.src = 'walk_up.gif';
+            assets.player.walk_down.src = 'walk_down.gif';
             
-            // Enemy sprites (replace with your actual PNG URLs)
-            assets.enemy.up.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjZmY2YjZiIi8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiM4MDAwMDAiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiM4MDAwMDAiLz4KPHBhdGggZD0iTTE2IDI0TDIwIDE2IiBzdHJva2U9IiM4MDAwMDAiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=';
-            assets.enemy.down.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAzMiA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjQ4IiBmaWxsPSIjZmY2YjZiIi8+CjxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjYiIGZpbGw9IiM4MDAwMDAiLz4KPHJlY3QgeD0iMTEiIHk9IjI0IiB3aWR0aD0iMTAiIGhlaWdodD0iMTYiIGZpbGw9IiM4MDAwMDAiLz4KPHBhdGggZD0iTTE2IDQwTDIwIDMyIiBzdHJva2U9IiM4MDAwMDAiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4=';
+            // Enemy sprites
+            assets.enemy.up.src = 'enemy_up.png';
+            assets.enemy.down.src = 'enemy_down.png';
             
-            // Tile sprite (replace with your actual tile PNG URL)
-            assets.tile.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjMzA0MDYwIi8+CjxyZWN0IHg9IjgiIHk9IjgiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIGZpbGw9IiM0NTU1NzAiLz4KPHJlY3QgeD0iMjIiIHk9IjgiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIGZpbGw9IiM0NTU1NzAiLz4KPHJlY3QgeD0iOCIgeT0iMjIiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIGZpbGw9IiM0NTU1NzAiLz4KPHJlY3QgeD0iMjIiIHk9IjIyIiB3aWR0aD0iMiIgaGVpZ2h0PSIyIiBmaWxsPSIjNDU1NTcwIi8+Cjwvc3ZnPg==';
+            // Tile sprite
+            assets.tile.src = 'tile.png';
             
-            // Swing effect sprite (replace with your actual GIF URL)
-            assets.swing_effect.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMjQiIGZpbGw9IiNmZjlmZjMiIGZpbGwtb3BhY2l0eT0iMC43Ii8+CjxwYXRoIGQ9Ik0xNiAzMkMzMiAxNiw0OCAzMiwzMiA0OCIgc3Ryb2tlPSIjZmY5ZmYzIiBzdHJva2Utd2lkdGg9IjQiLz4KPC9zdmc+';
+            // Swing effect sprite
+            assets.swing_effect.src = 'swing_effect.gif';
+            
+            // Set up error handling for images
+            Object.values(assets.player).forEach(img => {
+                img.onerror = () => console.error(`Failed to load player sprite: ${img.src}`);
+            });
+            Object.values(assets.enemy).forEach(img => {
+                img.onerror = () => console.error(`Failed to load enemy sprite: ${img.src}`);
+            });
+            assets.tile.onerror = () => console.error(`Failed to load tile sprite: ${assets.tile.src}`);
+            assets.swing_effect.onerror = () => console.error(`Failed to load swing effect: ${assets.swing_effect.src}`);
         }
         
         // Firebase variables
@@ -2244,6 +2254,3 @@
     </script>
 </body>
 </html>
-
-
-
