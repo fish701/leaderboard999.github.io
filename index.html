@@ -1088,8 +1088,8 @@
             player: {
                 x: 400,
                 y: 300,
-                width: 32,
-                height: 48,
+                width: 128,  // Updated to 128x128
+                height: 128, // Updated to 128x128
                 speed: 5,
                 lastAttack: 0,
                 attackCooldown: 500, // ms
@@ -1128,20 +1128,35 @@
         
         // Load images directly from the same folder
         function loadAssets() {
-            // Player sprites
+            // Player sprites - set to 128x128
             assets.player.idle.src = 'idle.gif';
-            assets.player.walk_up.src = 'walk_up.gif';
-            assets.player.walk_down.src = 'walk_down.gif';
+            assets.player.idle.width = 128;
+            assets.player.idle.height = 128;
             
-            // Enemy sprites
+            assets.player.walk_up.src = 'walk_up.gif';
+            assets.player.walk_up.width = 128;
+            assets.player.walk_up.height = 128;
+            
+            assets.player.walk_down.src = 'walk_down.gif';
+            assets.player.walk_down.width = 128;
+            assets.player.walk_down.height = 128;
+            
+            // Enemy sprites - set to 128x128
             assets.enemy.up.src = 'enemy_up.png';
+            assets.enemy.up.width = 128;
+            assets.enemy.up.height = 128;
+            
             assets.enemy.down.src = 'enemy_down.png';
+            assets.enemy.down.width = 128;
+            assets.enemy.down.height = 128;
             
             // Tile sprite
             assets.tile.src = 'tile.png';
             
-            // Swing effect sprite
+            // Swing effect sprite - set to 128x128
             assets.swing_effect.src = 'swing_effect.gif';
+            assets.swing_effect.width = 128;
+            assets.swing_effect.height = 128;
             
             // Set up error handling for images
             Object.values(assets.player).forEach(img => {
@@ -1411,8 +1426,8 @@
                 player: {
                     x: 400,
                     y: 300,
-                    width: 32,
-                    height: 48,
+                    width: 128,  // Updated to 128x128
+                    height: 128, // Updated to 128x128
                     speed: 5,
                     lastAttack: 0,
                     attackCooldown: 500 - (playerLevel - 1) * 25, // Faster attacks for higher levels (min 200ms)
@@ -1567,8 +1582,8 @@
                 lifetime: 300 // ms
             };
             
-            // Check for enemies in swing range
-            const swingRange = 50;
+            // Check for enemies in swing range - 3 times bigger (150 instead of 50)
+            const swingRange = 150;
             gameState.enemies.forEach(enemy => {
                 const dx = enemy.x - gameState.player.x;
                 const dy = enemy.y - gameState.player.y;
@@ -1612,7 +1627,7 @@
                 playerImg = assets.player.idle;
             }
             
-            // Draw player sprite
+            // Draw player sprite at 128x128
             ctx.drawImage(
                 playerImg, 
                 gameState.player.x - gameState.player.width/2, 
@@ -1661,13 +1676,13 @@
                 // Choose enemy sprite based on direction
                 const enemyImg = enemy.direction === 'up' ? assets.enemy.up : assets.enemy.down;
                 
-                // Draw enemy sprite
+                // Draw enemy sprite at 128x128
                 ctx.drawImage(
                     enemyImg,
                     enemy.x - enemy.size/2,
                     enemy.y - enemy.size/2,
                     enemy.size,
-                    enemy.size * 1.5 // Adjust height for character proportions
+                    enemy.size
                 );
                 
                 // Draw enemy health bar
@@ -1693,7 +1708,7 @@
         function drawSwingEffect() {
             if (gameState.swingEffect) {
                 const progress = gameState.swingEffect.progress;
-                const size = 40 + progress * 30; // Grow during swing
+                const size = 128; // Fixed size for 128x128
                 const opacity = 1 - progress; // Fade out during swing
                 
                 ctx.save();
@@ -1702,16 +1717,30 @@
                 // Position based on player direction
                 let offsetX = 0, offsetY = 0;
                 switch (gameState.swingEffect.direction) {
-                    case 'up': offsetY = -30; break;
-                    case 'down': offsetY = 30; break;
-                    case 'left': offsetX = -30; break;
-                    case 'right': offsetX = 30; break;
+                    case 'up': offsetY = -60; break;
+                    case 'down': offsetY = 60; break;
+                    case 'left': offsetX = -60; break;
+                    case 'right': offsetX = 60; break;
                 }
                 
+                // Calculate rotation angle based on player direction
+                let rotation = 0;
+                switch (gameState.swingEffect.direction) {
+                    case 'up': rotation = -Math.PI/2; break; // 10 o'clock position
+                    case 'down': rotation = Math.PI/2; break;
+                    case 'left': rotation = Math.PI; break;
+                    case 'right': rotation = 0; break;
+                }
+                
+                // Apply rotation
+                ctx.translate(gameState.swingEffect.x + offsetX, gameState.swingEffect.y + offsetY);
+                ctx.rotate(rotation);
+                
+                // Draw the swing effect
                 ctx.drawImage(
                     assets.swing_effect,
-                    gameState.swingEffect.x + offsetX - size/2,
-                    gameState.swingEffect.y + offsetY - size/2,
+                    -size/2,
+                    -size/2,
                     size,
                     size
                 );
@@ -1735,7 +1764,7 @@
                 gameState.enemies.push({
                     x: Math.max(20, Math.min(gameState.worldWidth - 20, x)),
                     y: Math.max(20, Math.min(gameState.worldHeight - 20, y)),
-                    size: 20 + enemyLevel * 1.5, // Slower size growth
+                    size: 128, // Updated to 128x128
                     speed: 1 + Math.random() * 1.5,
                     health: 20 + enemyLevel * 8, // Slower health growth
                     maxHealth: 20 + enemyLevel * 8,
