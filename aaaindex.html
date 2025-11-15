@@ -1071,12 +1071,6 @@
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
 
-        // Disable image smoothing for crisp pixel art
-        ctx.imageSmoothingEnabled = false;
-        ctx.mozImageSmoothingEnabled = false;
-        ctx.webkitImageSmoothingEnabled = false;
-        ctx.msImageSmoothingEnabled = false;
-
         // Track authentication state
         let isAuthenticated = false;
         let currentUser = null;
@@ -1094,129 +1088,21 @@
             player: {
                 x: 400,
                 y: 300,
-                width: 128,  // Updated to 128x128
-                height: 128, // Updated to 128x128
+                size: 20,
                 speed: 5,
+                color: '#4cd137',
                 lastAttack: 0,
-                attackCooldown: 500, // ms
-                direction: 'down', // 'up', 'down', 'left', 'right'
-                isMoving: false,
-                frame: 0,
-                frameCount: 0,
-                // Hitbox for more precise collision
-                hitbox: {
-                    x: 0,
-                    y: 0,
-                    width: 64,
-                    height: 64
-                }
+                attackCooldown: 500 // ms
             },
             enemies: [],
-            swingEffect: null,
+            projectiles: [],
             keys: {},
             lastTime: 0,
             camera: {
                 x: 0,
                 y: 0
-            },
-            tileSize: 32,
-            worldWidth: 1600,
-            worldHeight: 1200,
-            // Track loaded tiles
-            loadedTiles: new Set(),
-            // World boundaries
-            boundaries: {
-                minX: 0,
-                maxX: 1600,
-                minY: 0,
-                maxY: 1200
             }
         };
-        
-        // Game assets
-        const assets = {
-            player: {
-                idle: new Image(),
-                walk_up: new Image(),
-                walk_down: new Image()
-            },
-            enemy: {
-                up: new Image(),
-                down: new Image()
-            },
-            tile: new Image(),
-            swing_effect: new Image()
-        };
-        
-        // Load images directly from the same folder
-        function loadAssets() {
-            return new Promise((resolve, reject) => {
-                let loadedCount = 0;
-                const totalAssets = 7; // Count of all assets to load
-                
-                function assetLoaded() {
-                    loadedCount++;
-                    if (loadedCount === totalAssets) {
-                        resolve();
-                    }
-                }
-                
-                // Player sprites - set to 128x128
-                assets.player.idle.onload = assetLoaded;
-                assets.player.idle.src = 'idle.gif';
-                
-                assets.player.walk_up.onload = assetLoaded;
-                assets.player.walk_up.src = 'walk_up.gif';
-                
-                assets.player.walk_down.onload = assetLoaded;
-                assets.player.walk_down.src = 'walk_down.gif';
-                
-                // Enemy sprites - set to 128x128
-                assets.enemy.up.onload = assetLoaded;
-                assets.enemy.up.src = 'enemy_up.png';
-                
-                assets.enemy.down.onload = assetLoaded;
-                assets.enemy.down.src = 'enemy_down.png';
-                
-                // Tile sprite
-                assets.tile.onload = assetLoaded;
-                assets.tile.src = 'tile.png';
-                
-                // Swing effect sprite - set to 128x128
-                assets.swing_effect.onload = assetLoaded;
-                assets.swing_effect.src = 'swing_effect.gif';
-                
-                // Set up error handling for images
-                Object.values(assets.player).forEach(img => {
-                    img.onerror = () => {
-                        console.error(`Failed to load player sprite: ${img.src}`);
-                        assetLoaded();
-                    };
-                });
-                Object.values(assets.enemy).forEach(img => {
-                    img.onerror = () => {
-                        console.error(`Failed to load enemy sprite: ${img.src}`);
-                        assetLoaded();
-                    };
-                });
-                assets.tile.onerror = () => {
-                    console.error(`Failed to load tile sprite: ${assets.tile.src}`);
-                    assetLoaded();
-                };
-                assets.swing_effect.onerror = () => {
-                    console.error(`Failed to load swing effect: ${assets.swing_effect.src}`);
-                    assetLoaded();
-                };
-                
-                // If any assets fail to load, we'll still resolve after a timeout
-                setTimeout(() => {
-                    if (loadedCount < totalAssets) {
-                        console.warn('Some assets failed to load, continuing anyway');
-                        resolve();
-                    }
-                }, 5000);
-            });
-        }
         
         // Firebase variables
         let db;
@@ -1451,19 +1337,11 @@
         }
 
         // Game Functions
-        async function startGame() {
+        function startGame() {
             // Check if user has a bound player
             if (!userBoundPlayer) {
                 alert("You need to link your account to a player to enter the world");
                 return;
-            }
-            
-            // Load game assets
-            try {
-                await loadAssets();
-            } catch (error) {
-                console.error('Error loading assets:', error);
-                alert('Some game assets failed to load. The game may not display correctly.');
             }
             
             // Calculate player level from leaderboard score
@@ -1480,42 +1358,19 @@
                 player: {
                     x: 400,
                     y: 300,
-                    width: 128,  // Updated to 128x128
-                    height: 128, // Updated to 128x128
+                    size: 20,
                     speed: 5,
+                    color: '#4cd137',
                     lastAttack: 0,
-                    attackCooldown: 500 - (playerLevel - 1) * 25, // Faster attacks for higher levels (min 200ms)
-                    direction: 'down',
-                    isMoving: false,
-                    frame: 0,
-                    frameCount: 0,
-                    // Hitbox for more precise collision
-                    hitbox: {
-                        x: 32,
-                        y: 32,
-                        width: 64,
-                        height: 64
-                    }
+                    attackCooldown: 500 - (playerLevel - 1) * 25 // Faster attacks for higher levels (min 200ms)
                 },
                 enemies: [],
-                swingEffect: null,
+                projectiles: [],
                 keys: {},
                 lastTime: performance.now(),
                 camera: {
                     x: 0,
                     y: 0
-                },
-                tileSize: 32,
-                worldWidth: 1600,
-                worldHeight: 1200,
-                // Track loaded tiles
-                loadedTiles: new Set(),
-                // World boundaries
-                boundaries: {
-                    minX: 64,
-                    maxX: 1600 - 64,
-                    minY: 64,
-                    maxY: 1200 - 64
                 }
             };
             
@@ -1550,7 +1405,7 @@
             // Update game state
             updatePlayer(deltaTime, currentTime);
             updateEnemies(deltaTime);
-            updateSwingEffect(deltaTime);
+            updateProjectiles(deltaTime);
             
             // Update camera to follow player
             updateCamera();
@@ -1562,10 +1417,9 @@
             ctx.translate(-gameState.camera.x, -gameState.camera.y);
             
             // Draw everything with camera offset
-            drawGround();
             drawPlayer();
             drawEnemies();
-            drawSwingEffect();
+            drawProjectiles();
             
             // Restore the canvas state
             ctx.restore();
@@ -1579,155 +1433,57 @@
             gameState.camera.x = gameState.player.x - gameCanvas.width / 2;
             gameState.camera.y = gameState.player.y - gameCanvas.height / 2;
             
-            // Clamp camera to world bounds
-            gameState.camera.x = Math.max(0, Math.min(gameState.worldWidth - gameCanvas.width, gameState.camera.x));
-            gameState.camera.y = Math.max(0, Math.min(gameState.worldHeight - gameCanvas.height, gameState.camera.y));
-        }
-
-        function drawGround() {
-            const tileSize = gameState.tileSize;
-            const startX = Math.floor(gameState.camera.x / tileSize) * tileSize;
-            const startY = Math.floor(gameState.camera.y / tileSize) * tileSize;
-            const endX = startX + gameCanvas.width + tileSize;
-            const endY = startY + gameCanvas.height + tileSize;
-            
-            for (let x = startX; x < endX; x += tileSize) {
-                for (let y = startY; y < endY; y += tileSize) {
-                    // Only draw tiles that are within the world boundaries
-                    if (x >= 0 && x < gameState.worldWidth && y >= 0 && y < gameState.worldHeight) {
-                        ctx.drawImage(assets.tile, x, y, tileSize, tileSize);
-                    }
-                }
-            }
+            // Clamp camera to world bounds (if needed)
+            // For now, we'll allow the camera to move freely
         }
 
         function updatePlayer(deltaTime, currentTime) {
-            // Reset movement state
-            gameState.player.isMoving = false;
-            
-            // Calculate new position based on input
-            let newX = gameState.player.x;
-            let newY = gameState.player.y;
-            
+            // Movement
             if (gameState.keys['KeyW'] || gameState.keys['ArrowUp']) {
-                newY -= gameState.player.speed;
-                gameState.player.direction = 'up';
-                gameState.player.isMoving = true;
+                gameState.player.y -= gameState.player.speed;
             }
             if (gameState.keys['KeyS'] || gameState.keys['ArrowDown']) {
-                newY += gameState.player.speed;
-                gameState.player.direction = 'down';
-                gameState.player.isMoving = true;
+                gameState.player.y += gameState.player.speed;
             }
             if (gameState.keys['KeyA'] || gameState.keys['ArrowLeft']) {
-                newX -= gameState.player.speed;
-                gameState.player.direction = 'left';
-                gameState.player.isMoving = true;
+                gameState.player.x -= gameState.player.speed;
             }
             if (gameState.keys['KeyD'] || gameState.keys['ArrowRight']) {
-                newX += gameState.player.speed;
-                gameState.player.direction = 'right';
-                gameState.player.isMoving = true;
+                gameState.player.x += gameState.player.speed;
             }
             
-            // Update hitbox position
-            gameState.player.hitbox.x = newX - gameState.player.hitbox.width / 2;
-            gameState.player.hitbox.y = newY - gameState.player.hitbox.height / 2;
+            // Keep player in bounds (optional with camera)
+            // gameState.player.x = Math.max(gameState.player.size, Math.min(gameCanvas.width - gameState.player.size, gameState.player.x));
+            // gameState.player.y = Math.max(gameState.player.size, Math.min(gameCanvas.height - gameState.player.size, gameState.player.y));
             
-            // Check collision with world boundaries
-            if (newX >= gameState.boundaries.minX && newX <= gameState.boundaries.maxX) {
-                gameState.player.x = newX;
-            }
-            if (newY >= gameState.boundaries.minY && newY <= gameState.boundaries.maxY) {
-                gameState.player.y = newY;
-            }
-            
-            // Update animation frame
-            gameState.player.frameCount += deltaTime;
-            if (gameState.player.frameCount > 200) { // Change frame every 200ms
-                gameState.player.frame = (gameState.player.frame + 1) % 2; // Simple 2-frame animation
-                gameState.player.frameCount = 0;
-            }
-            
-            // Attack with spacebar
+            // Attack with spacebar - FIXED: Pass currentTime correctly
             if (gameState.keys['Space'] && currentTime - gameState.player.lastAttack > gameState.player.attackCooldown) {
-                swordSwing();
+                attack();
                 gameState.player.lastAttack = currentTime;
             }
         }
 
-        function swordSwing() {
-            // Create sword swing effect
-            gameState.swingEffect = {
-                x: gameState.player.x,
-                y: gameState.player.y,
-                direction: gameState.player.direction,
-                progress: 0,
-                lifetime: 300 // ms
-            };
+        function attack() {
+            // Create projectiles in four directions
+            const directions = [
+                { x: 1, y: 0 },   // Right
+                { x: -1, y: 0 },  // Left
+                { x: 0, y: 1 },   // Down
+                { x: 0, y: -1 }   // Up
+            ];
             
-            // Check for enemies in swing range - 3 times bigger (150 instead of 50)
-            const swingRange = 150;
-            gameState.enemies.forEach(enemy => {
-                const dx = enemy.x - gameState.player.x;
-                const dy = enemy.y - gameState.player.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < swingRange) {
-                    enemy.health -= gameState.damage;
-                    
-                    if (enemy.health <= 0) {
-                        // Add to session score only, doesn't affect leaderboard
-                        gameState.score += 10 * gameState.level;
-                        updateGameUI();
-                    }
-                }
+            directions.forEach(dir => {
+                gameState.projectiles.push({
+                    x: gameState.player.x,
+                    y: gameState.player.y,
+                    vx: dir.x * 10,
+                    vy: dir.y * 10,
+                    size: 8,
+                    color: '#ff9ff3',
+                    damage: gameState.damage,
+                    lifetime: 1000 // ms
+                });
             });
-        }
-
-        function updateSwingEffect(deltaTime) {
-            if (gameState.swingEffect) {
-                gameState.swingEffect.progress += deltaTime / gameState.swingEffect.lifetime;
-                
-                if (gameState.swingEffect.progress >= 1) {
-                    gameState.swingEffect = null;
-                }
-            }
-        }
-
-        function drawPlayer() {
-            let playerImg;
-            
-            if (gameState.player.isMoving) {
-                if (gameState.player.direction === 'up') {
-                    playerImg = assets.player.walk_up;
-                } else if (gameState.player.direction === 'down') {
-                    playerImg = assets.player.walk_down;
-                } else {
-                    // For left/right, use the down sprite (you can add left/right sprites later)
-                    playerImg = assets.player.walk_down;
-                }
-            } else {
-                playerImg = assets.player.idle;
-            }
-            
-            // Draw player sprite at 128x128
-            ctx.drawImage(
-                playerImg, 
-                gameState.player.x - gameState.player.width/2, 
-                gameState.player.y - gameState.player.height/2,
-                gameState.player.width,
-                gameState.player.height
-            );
-            
-            // Draw hitbox for debugging (remove in production)
-            // ctx.strokeStyle = 'red';
-            // ctx.strokeRect(
-            //     gameState.player.hitbox.x,
-            //     gameState.player.hitbox.y,
-            //     gameState.player.hitbox.width,
-            //     gameState.player.hitbox.height
-            // );
         }
 
         function updateEnemies(deltaTime) {
@@ -1740,19 +1496,12 @@
                 if (distance > 0) {
                     enemy.x += (dx / distance) * enemy.speed;
                     enemy.y += (dy / distance) * enemy.speed;
-                    
-                    // Update enemy direction
-                    enemy.direction = dy < 0 ? 'up' : 'down';
                 }
                 
-                // Update enemy hitbox position
-                enemy.hitbox.x = enemy.x - enemy.hitbox.width / 2;
-                enemy.hitbox.y = enemy.y - enemy.hitbox.height / 2;
-                
-                // Check collision with player using precise hitbox detection
-                if (checkCollision(gameState.player.hitbox, enemy.hitbox)) {
+                // Check collision with player
+                if (distance < gameState.player.size + enemy.size) {
                     gameState.health -= enemy.damage;
-                    updateGameUI(); // Update health bar when taking damage
+                    updateGameUI(); // FIX: Update health bar when taking damage
                     
                     if (gameState.health <= 0) {
                         gameOver();
@@ -1768,101 +1517,34 @@
             }
         }
 
-        // Precise collision detection function
-        function checkCollision(rect1, rect2) {
-            return (
-                rect1.x < rect2.x + rect2.width &&
-                rect1.x + rect1.width > rect2.x &&
-                rect1.y < rect2.y + rect2.height &&
-                rect1.y + rect1.height > rect2.y
-            );
-        }
-
-        function drawEnemies() {
-            gameState.enemies.forEach(enemy => {
-                // Choose enemy sprite based on direction
-                const enemyImg = enemy.direction === 'up' ? assets.enemy.up : assets.enemy.down;
+        function updateProjectiles(deltaTime) {
+            // Update projectile positions and lifetimes
+            gameState.projectiles.forEach(projectile => {
+                projectile.x += projectile.vx;
+                projectile.y += projectile.vy;
+                projectile.lifetime -= deltaTime;
                 
-                // Draw enemy sprite at 128x128
-                ctx.drawImage(
-                    enemyImg,
-                    enemy.x - enemy.size/2,
-                    enemy.y - enemy.size/2,
-                    enemy.size,
-                    enemy.size
-                );
-                
-                // Draw enemy health bar
-                const barWidth = enemy.size;
-                const barHeight = 4;
-                const barX = enemy.x - barWidth / 2;
-                const barY = enemy.y - enemy.size - 8;
-                
-                ctx.fillStyle = '#333';
-                ctx.fillRect(barX, barY, barWidth, barHeight);
-                
-                ctx.fillStyle = '#4cd137';
-                ctx.fillRect(barX, barY, barWidth * (enemy.health / enemy.maxHealth), barHeight);
-                
-                // Draw enemy level
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(`Lv.${enemy.level}`, enemy.x, enemy.y + enemy.size + 12);
-                
-                // Draw hitbox for debugging (remove in production)
-                // ctx.strokeStyle = 'blue';
-                // ctx.strokeRect(
-                //     enemy.hitbox.x,
-                //     enemy.hitbox.y,
-                //     enemy.hitbox.width,
-                //     enemy.hitbox.height
-                // );
+                // Check collision with enemies
+                gameState.enemies.forEach(enemy => {
+                    const dx = projectile.x - enemy.x;
+                    const dy = projectile.y - enemy.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < projectile.size + enemy.size) {
+                        enemy.health -= projectile.damage;
+                        projectile.lifetime = 0; // Mark projectile for removal
+                        
+                        if (enemy.health <= 0) {
+                            // Add to session score only, doesn't affect leaderboard
+                            gameState.score += 10 * gameState.level;
+                            updateGameUI();
+                        }
+                    }
+                });
             });
-        }
-
-        function drawSwingEffect() {
-            if (gameState.swingEffect) {
-                const progress = gameState.swingEffect.progress;
-                const size = 128; // Fixed size for 128x128
-                const opacity = 1 - progress; // Fade out during swing
-                
-                ctx.save();
-                ctx.globalAlpha = opacity;
-                
-                // Position based on player direction
-                let offsetX = 0, offsetY = 0;
-                switch (gameState.swingEffect.direction) {
-                    case 'up': offsetY = -60; break;
-                    case 'down': offsetY = 60; break;
-                    case 'left': offsetX = -60; break;
-                    case 'right': offsetX = 60; break;
-                }
-                
-                // Calculate rotation angle based on player direction
-                let rotation = 0;
-                switch (gameState.swingEffect.direction) {
-                    case 'up': rotation = -Math.PI/2; break; // 10 o'clock position
-                    case 'down': rotation = Math.PI/2; break;
-                    case 'left': rotation = Math.PI; break;
-                    case 'right': rotation = 0; break;
-                }
-                
-                // Apply rotation
-                ctx.translate(gameState.swingEffect.x + offsetX, gameState.swingEffect.y + offsetY);
-                ctx.rotate(rotation);
-                
-                // Draw the swing effect
-                ctx.drawImage(
-                    assets.swing_effect,
-                    -size/2,
-                    -size/2,
-                    size,
-                    size
-                );
-                
-                ctx.restore();
-            }
+            
+            // Remove expired projectiles
+            gameState.projectiles = gameState.projectiles.filter(p => p.lifetime > 0);
         }
 
         function spawnEnemies(count) {
@@ -1878,24 +1560,71 @@
                 const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
                 
                 gameState.enemies.push({
-                    x: Math.max(64, Math.min(gameState.worldWidth - 64, x)),
-                    y: Math.max(64, Math.min(gameState.worldHeight - 64, y)),
-                    size: 128, // Updated to 128x128
+                    x: x,
+                    y: y,
+                    size: 15 + enemyLevel * 1.5, // Slower size growth
                     speed: 1 + Math.random() * 1.5,
+                    color: enemyLevel === 1 ? '#ff6b6b' : 
+                           enemyLevel === 2 ? '#ff9ff3' : 
+                           enemyLevel === 3 ? '#f368e0' : '#ff3838',
                     health: 20 + enemyLevel * 8, // Slower health growth
                     maxHealth: 20 + enemyLevel * 8,
                     damage: 5 + enemyLevel * 1.5, // Slower damage growth
-                    level: enemyLevel,
-                    direction: 'down',
-                    // Hitbox for more precise collision
-                    hitbox: {
-                        x: 0,
-                        y: 0,
-                        width: 64,
-                        height: 64
-                    }
+                    level: enemyLevel
                 });
             }
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = gameState.player.color;
+            ctx.beginPath();
+            ctx.arc(gameState.player.x, gameState.player.y, gameState.player.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw player direction indicator
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(gameState.player.x, gameState.player.y);
+            ctx.lineTo(gameState.player.x, gameState.player.y - gameState.player.size - 5);
+            ctx.stroke();
+        }
+
+        function drawEnemies() {
+            gameState.enemies.forEach(enemy => {
+                // Draw enemy body
+                ctx.fillStyle = enemy.color;
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw enemy health bar
+                const barWidth = enemy.size * 2;
+                const barHeight = 4;
+                const barX = enemy.x - barWidth / 2;
+                const barY = enemy.y - enemy.size - 8;
+                
+                ctx.fillStyle = '#333';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                
+                ctx.fillStyle = '#4cd137';
+                ctx.fillRect(barX, barY, barWidth * (enemy.health / enemy.maxHealth), barHeight);
+                
+                // Draw enemy level
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Lv.${enemy.level}`, enemy.x, enemy.y + enemy.size + 12);
+            });
+        }
+
+        function drawProjectiles() {
+            gameState.projectiles.forEach(projectile => {
+                ctx.fillStyle = projectile.color;
+                ctx.beginPath();
+                ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
         }
 
         function gameOver() {
