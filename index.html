@@ -1071,6 +1071,12 @@
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
 
+        // Disable image smoothing for crisp pixel art
+        ctx.imageSmoothingEnabled = false;
+        ctx.mozImageSmoothingEnabled = false;
+        ctx.webkitImageSmoothingEnabled = false;
+        ctx.msImageSmoothingEnabled = false;
+
         // Track authentication state
         let isAuthenticated = false;
         let currentUser = null;
@@ -1096,7 +1102,14 @@
                 direction: 'down', // 'up', 'down', 'left', 'right'
                 isMoving: false,
                 frame: 0,
-                frameCount: 0
+                frameCount: 0,
+                // Hitbox for more precise collision
+                hitbox: {
+                    x: 0,
+                    y: 0,
+                    width: 64,
+                    height: 64
+                }
             },
             enemies: [],
             swingEffect: null,
@@ -1108,7 +1121,16 @@
             },
             tileSize: 32,
             worldWidth: 1600,
-            worldHeight: 1200
+            worldHeight: 1200,
+            // Track loaded tiles
+            loadedTiles: new Set(),
+            // World boundaries
+            boundaries: {
+                minX: 0,
+                maxX: 1600,
+                minY: 0,
+                maxY: 1200
+            }
         };
         
         // Game assets
@@ -1128,45 +1150,72 @@
         
         // Load images directly from the same folder
         function loadAssets() {
-            // Player sprites - set to 128x128
-            assets.player.idle.src = 'idle.gif';
-            assets.player.idle.width = 128;
-            assets.player.idle.height = 128;
-            
-            assets.player.walk_up.src = 'walk_up.gif';
-            assets.player.walk_up.width = 128;
-            assets.player.walk_up.height = 128;
-            
-            assets.player.walk_down.src = 'walk_down.gif';
-            assets.player.walk_down.width = 128;
-            assets.player.walk_down.height = 128;
-            
-            // Enemy sprites - set to 128x128
-            assets.enemy.up.src = 'enemy_up.png';
-            assets.enemy.up.width = 128;
-            assets.enemy.up.height = 128;
-            
-            assets.enemy.down.src = 'enemy_down.png';
-            assets.enemy.down.width = 128;
-            assets.enemy.down.height = 128;
-            
-            // Tile sprite
-            assets.tile.src = 'tile.png';
-            
-            // Swing effect sprite - set to 128x128
-            assets.swing_effect.src = 'swing_effect.gif';
-            assets.swing_effect.width = 128;
-            assets.swing_effect.height = 128;
-            
-            // Set up error handling for images
-            Object.values(assets.player).forEach(img => {
-                img.onerror = () => console.error(`Failed to load player sprite: ${img.src}`);
+            return new Promise((resolve, reject) => {
+                let loadedCount = 0;
+                const totalAssets = 7; // Count of all assets to load
+                
+                function assetLoaded() {
+                    loadedCount++;
+                    if (loadedCount === totalAssets) {
+                        resolve();
+                    }
+                }
+                
+                // Player sprites - set to 128x128
+                assets.player.idle.onload = assetLoaded;
+                assets.player.idle.src = 'idle.gif';
+                
+                assets.player.walk_up.onload = assetLoaded;
+                assets.player.walk_up.src = 'walk_up.gif';
+                
+                assets.player.walk_down.onload = assetLoaded;
+                assets.player.walk_down.src = 'walk_down.gif';
+                
+                // Enemy sprites - set to 128x128
+                assets.enemy.up.onload = assetLoaded;
+                assets.enemy.up.src = 'enemy_up.png';
+                
+                assets.enemy.down.onload = assetLoaded;
+                assets.enemy.down.src = 'enemy_down.png';
+                
+                // Tile sprite
+                assets.tile.onload = assetLoaded;
+                assets.tile.src = 'tile.png';
+                
+                // Swing effect sprite - set to 128x128
+                assets.swing_effect.onload = assetLoaded;
+                assets.swing_effect.src = 'swing_effect.gif';
+                
+                // Set up error handling for images
+                Object.values(assets.player).forEach(img => {
+                    img.onerror = () => {
+                        console.error(`Failed to load player sprite: ${img.src}`);
+                        assetLoaded();
+                    };
+                });
+                Object.values(assets.enemy).forEach(img => {
+                    img.onerror = () => {
+                        console.error(`Failed to load enemy sprite: ${img.src}`);
+                        assetLoaded();
+                    };
+                });
+                assets.tile.onerror = () => {
+                    console.error(`Failed to load tile sprite: ${assets.tile.src}`);
+                    assetLoaded();
+                };
+                assets.swing_effect.onerror = () => {
+                    console.error(`Failed to load swing effect: ${assets.swing_effect.src}`);
+                    assetLoaded();
+                };
+                
+                // If any assets fail to load, we'll still resolve after a timeout
+                setTimeout(() => {
+                    if (loadedCount < totalAssets) {
+                        console.warn('Some assets failed to load, continuing anyway');
+                        resolve();
+                    }
+                }, 5000);
             });
-            Object.values(assets.enemy).forEach(img => {
-                img.onerror = () => console.error(`Failed to load enemy sprite: ${img.src}`);
-            });
-            assets.tile.onerror = () => console.error(`Failed to load tile sprite: ${assets.tile.src}`);
-            assets.swing_effect.onerror = () => console.error(`Failed to load swing effect: ${assets.swing_effect.src}`);
         }
         
         // Firebase variables
@@ -1402,7 +1451,7 @@
         }
 
         // Game Functions
-        function startGame() {
+        async function startGame() {
             // Check if user has a bound player
             if (!userBoundPlayer) {
                 alert("You need to link your account to a player to enter the world");
@@ -1410,7 +1459,12 @@
             }
             
             // Load game assets
-            loadAssets();
+            try {
+                await loadAssets();
+            } catch (error) {
+                console.error('Error loading assets:', error);
+                alert('Some game assets failed to load. The game may not display correctly.');
+            }
             
             // Calculate player level from leaderboard score
             const playerLevel = calculateLevelAndProgress(userBoundPlayer.score).level;
@@ -1434,7 +1488,14 @@
                     direction: 'down',
                     isMoving: false,
                     frame: 0,
-                    frameCount: 0
+                    frameCount: 0,
+                    // Hitbox for more precise collision
+                    hitbox: {
+                        x: 32,
+                        y: 32,
+                        width: 64,
+                        height: 64
+                    }
                 },
                 enemies: [],
                 swingEffect: null,
@@ -1446,7 +1507,16 @@
                 },
                 tileSize: 32,
                 worldWidth: 1600,
-                worldHeight: 1200
+                worldHeight: 1200,
+                // Track loaded tiles
+                loadedTiles: new Set(),
+                // World boundaries
+                boundaries: {
+                    minX: 64,
+                    maxX: 1600 - 64,
+                    minY: 64,
+                    maxY: 1200 - 64
+                }
             };
             
             updateGameUI();
@@ -1523,7 +1593,10 @@
             
             for (let x = startX; x < endX; x += tileSize) {
                 for (let y = startY; y < endY; y += tileSize) {
-                    ctx.drawImage(assets.tile, x, y, tileSize, tileSize);
+                    // Only draw tiles that are within the world boundaries
+                    if (x >= 0 && x < gameState.worldWidth && y >= 0 && y < gameState.worldHeight) {
+                        ctx.drawImage(assets.tile, x, y, tileSize, tileSize);
+                    }
                 }
             }
         }
@@ -1532,31 +1605,42 @@
             // Reset movement state
             gameState.player.isMoving = false;
             
-            // Movement
+            // Calculate new position based on input
+            let newX = gameState.player.x;
+            let newY = gameState.player.y;
+            
             if (gameState.keys['KeyW'] || gameState.keys['ArrowUp']) {
-                gameState.player.y -= gameState.player.speed;
+                newY -= gameState.player.speed;
                 gameState.player.direction = 'up';
                 gameState.player.isMoving = true;
             }
             if (gameState.keys['KeyS'] || gameState.keys['ArrowDown']) {
-                gameState.player.y += gameState.player.speed;
+                newY += gameState.player.speed;
                 gameState.player.direction = 'down';
                 gameState.player.isMoving = true;
             }
             if (gameState.keys['KeyA'] || gameState.keys['ArrowLeft']) {
-                gameState.player.x -= gameState.player.speed;
+                newX -= gameState.player.speed;
                 gameState.player.direction = 'left';
                 gameState.player.isMoving = true;
             }
             if (gameState.keys['KeyD'] || gameState.keys['ArrowRight']) {
-                gameState.player.x += gameState.player.speed;
+                newX += gameState.player.speed;
                 gameState.player.direction = 'right';
                 gameState.player.isMoving = true;
             }
             
-            // Keep player in world bounds
-            gameState.player.x = Math.max(gameState.player.width/2, Math.min(gameState.worldWidth - gameState.player.width/2, gameState.player.x));
-            gameState.player.y = Math.max(gameState.player.height/2, Math.min(gameState.worldHeight - gameState.player.height/2, gameState.player.y));
+            // Update hitbox position
+            gameState.player.hitbox.x = newX - gameState.player.hitbox.width / 2;
+            gameState.player.hitbox.y = newY - gameState.player.hitbox.height / 2;
+            
+            // Check collision with world boundaries
+            if (newX >= gameState.boundaries.minX && newX <= gameState.boundaries.maxX) {
+                gameState.player.x = newX;
+            }
+            if (newY >= gameState.boundaries.minY && newY <= gameState.boundaries.maxY) {
+                gameState.player.y = newY;
+            }
             
             // Update animation frame
             gameState.player.frameCount += deltaTime;
@@ -1635,6 +1719,15 @@
                 gameState.player.width,
                 gameState.player.height
             );
+            
+            // Draw hitbox for debugging (remove in production)
+            // ctx.strokeStyle = 'red';
+            // ctx.strokeRect(
+            //     gameState.player.hitbox.x,
+            //     gameState.player.hitbox.y,
+            //     gameState.player.hitbox.width,
+            //     gameState.player.hitbox.height
+            // );
         }
 
         function updateEnemies(deltaTime) {
@@ -1652,10 +1745,14 @@
                     enemy.direction = dy < 0 ? 'up' : 'down';
                 }
                 
-                // Check collision with player
-                if (distance < gameState.player.width/2 + enemy.size/2) {
+                // Update enemy hitbox position
+                enemy.hitbox.x = enemy.x - enemy.hitbox.width / 2;
+                enemy.hitbox.y = enemy.y - enemy.hitbox.height / 2;
+                
+                // Check collision with player using precise hitbox detection
+                if (checkCollision(gameState.player.hitbox, enemy.hitbox)) {
                     gameState.health -= enemy.damage;
-                    updateGameUI(); // FIX: Update health bar when taking damage
+                    updateGameUI(); // Update health bar when taking damage
                     
                     if (gameState.health <= 0) {
                         gameOver();
@@ -1669,6 +1766,16 @@
             if (gameState.enemies.length < 3 + Math.floor(gameState.level / 2)) {
                 spawnEnemies(1);
             }
+        }
+
+        // Precise collision detection function
+        function checkCollision(rect1, rect2) {
+            return (
+                rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y
+            );
         }
 
         function drawEnemies() {
@@ -1702,6 +1809,15 @@
                 ctx.font = '12px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText(`Lv.${enemy.level}`, enemy.x, enemy.y + enemy.size + 12);
+                
+                // Draw hitbox for debugging (remove in production)
+                // ctx.strokeStyle = 'blue';
+                // ctx.strokeRect(
+                //     enemy.hitbox.x,
+                //     enemy.hitbox.y,
+                //     enemy.hitbox.width,
+                //     enemy.hitbox.height
+                // );
             });
         }
 
@@ -1762,15 +1878,22 @@
                 const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
                 
                 gameState.enemies.push({
-                    x: Math.max(20, Math.min(gameState.worldWidth - 20, x)),
-                    y: Math.max(20, Math.min(gameState.worldHeight - 20, y)),
+                    x: Math.max(64, Math.min(gameState.worldWidth - 64, x)),
+                    y: Math.max(64, Math.min(gameState.worldHeight - 64, y)),
                     size: 128, // Updated to 128x128
                     speed: 1 + Math.random() * 1.5,
                     health: 20 + enemyLevel * 8, // Slower health growth
                     maxHealth: 20 + enemyLevel * 8,
                     damage: 5 + enemyLevel * 1.5, // Slower damage growth
                     level: enemyLevel,
-                    direction: 'down'
+                    direction: 'down',
+                    // Hitbox for more precise collision
+                    hitbox: {
+                        x: 0,
+                        y: 0,
+                        width: 64,
+                        height: 64
+                    }
                 });
             }
         }
@@ -2283,3 +2406,4 @@
     </script>
 </body>
 </html>
+
