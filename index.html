@@ -1108,7 +1108,7 @@
             }
         };
         
-        // Image assets
+        // Image assets - FIXED: Now uses a function to create placeholder images when real images fail to load
         const images = {
             // Player animations
             playerIdle: [],
@@ -1122,9 +1122,20 @@
             swordSwing: []
         };
         
-        // Load all images
+        // Create a colored rectangle as a fallback image
+        function createFallbackImage(width, height, color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, width, height);
+            return canvas;
+        }
+        
+        // Load all images - FIXED: Better error handling and fallbacks
         function loadImages() {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 let imagesToLoad = 0;
                 let imagesLoaded = 0;
                 
@@ -1132,6 +1143,7 @@
                 function imageLoaded() {
                     imagesLoaded++;
                     if (imagesLoaded === imagesToLoad) {
+                        console.log('All images loaded successfully');
                         resolve();
                     }
                 }
@@ -1142,10 +1154,14 @@
                     const img = new Image();
                     img.onload = imageLoaded;
                     img.onerror = () => {
-                        console.error(`Failed to load player_idle${i}.png`);
+                        console.warn(`Failed to load player_idle${i}.png, using fallback`);
+                        // Create a colored rectangle as fallback
+                        const fallback = createFallbackImage(64, 64, '#4cd137');
+                        images.playerIdle.push(fallback);
                         imageLoaded();
                     };
-                    img.src = `https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/images/player_idle${i}.png`;
+                    // REPLACE WITH YOUR OWN IMAGE PATHS
+                    img.src = `images/player_idle${i}.png`;
                     images.playerIdle.push(img);
                 }
                 
@@ -1155,10 +1171,13 @@
                     const img = new Image();
                     img.onload = imageLoaded;
                     img.onerror = () => {
-                        console.error(`Failed to load player_walk_up_frame${i}.png`);
+                        console.warn(`Failed to load player_walk_up_frame${i}.png, using fallback`);
+                        const fallback = createFallbackImage(64, 64, '#3498db');
+                        images.playerWalkUp.push(fallback);
                         imageLoaded();
                     };
-                    img.src = `https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/images/player_walk_up_frame${i}.png`;
+                    // REPLACE WITH YOUR OWN IMAGE PATHS
+                    img.src = `images/player_walk_up_frame${i}.png`;
                     images.playerWalkUp.push(img);
                 }
                 
@@ -1168,10 +1187,13 @@
                     const img = new Image();
                     img.onload = imageLoaded;
                     img.onerror = () => {
-                        console.error(`Failed to load player_walk_down_frame${i}.png`);
+                        console.warn(`Failed to load player_walk_down_frame${i}.png, using fallback`);
+                        const fallback = createFallbackImage(64, 64, '#2ecc71');
+                        images.playerWalkDown.push(fallback);
                         imageLoaded();
                     };
-                    img.src = `https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/images/player_walk_down_frame${i}.png`;
+                    // REPLACE WITH YOUR OWN IMAGE PATHS
+                    img.src = `images/player_walk_down_frame${i}.png`;
                     images.playerWalkDown.push(img);
                 }
                 
@@ -1180,20 +1202,24 @@
                 images.enemy = new Image();
                 images.enemy.onload = imageLoaded;
                 images.enemy.onerror = () => {
-                    console.error('Failed to load enemy.png');
+                    console.warn('Failed to load enemy.png, using fallback');
+                    images.enemy = createFallbackImage(64, 64, '#e74c3c');
                     imageLoaded();
                 };
-                images.enemy.src = 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/images/enemy.png';
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.enemy.src = 'images/enemy.png';
                 
                 // Load ground tile
                 imagesToLoad++;
                 images.groundTile = new Image();
                 images.groundTile.onload = imageLoaded;
                 images.groundTile.onerror = () => {
-                    console.error('Failed to load tile.png');
+                    console.warn('Failed to load tile.png, using fallback');
+                    images.groundTile = createFallbackImage(64, 64, '#34495e');
                     imageLoaded();
                 };
-                images.groundTile.src = 'https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/images/tile.png';
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.groundTile.src = 'images/tile.png';
                 
                 // Load sword swing frames (1-3)
                 for (let i = 1; i <= 3; i++) {
@@ -1201,10 +1227,13 @@
                     const img = new Image();
                     img.onload = imageLoaded;
                     img.onerror = () => {
-                        console.error(`Failed to load swing_effect_frame${i}.png`);
+                        console.warn(`Failed to load swing_effect_frame${i}.png, using fallback`);
+                        const fallback = createFallbackImage(64, 64, '#f1c40f');
+                        images.swordSwing.push(fallback);
                         imageLoaded();
                     };
-                    img.src = `https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/images/swing_effect_frame${i}.png`;
+                    // REPLACE WITH YOUR OWN IMAGE PATHS
+                    img.src = `images/swing_effect_frame${i}.png`;
                     images.swordSwing.push(img);
                 }
                 
@@ -1212,11 +1241,6 @@
                 if (imagesToLoad === 0) resolve();
             });
         }
-        
-        // Firebase variables
-        let db;
-        let leaderboardCollection;
-        let auth;
 
         // Level progression system
         function calculateLevelAndProgress(score) {
@@ -1445,7 +1469,7 @@
             });
         }
 
-        // Game Functions
+        // Game Functions - FIXED: Better error handling and fallback rendering
         async function startGame() {
             // Check if user has a bound player
             if (!userBoundPlayer) {
@@ -1455,11 +1479,12 @@
             
             // Load images first
             try {
+                console.log("Loading game images...");
                 await loadImages();
+                console.log("Game images loaded successfully");
             } catch (error) {
                 console.error('Error loading images:', error);
-                alert('Failed to load game assets. Please check your internet connection and try again.');
-                return;
+                // Continue even if images fail to load - we have fallback rendering
             }
             
             // Calculate player level from leaderboard score
@@ -1561,17 +1586,31 @@
         }
 
         function drawGround() {
-            if (!images.groundTile) return;
-            
-            const tileSize = 64;
-            const startX = Math.floor(gameState.camera.x / tileSize) * tileSize;
-            const startY = Math.floor(gameState.camera.y / tileSize) * tileSize;
-            const endX = startX + gameCanvas.width + tileSize;
-            const endY = startY + gameCanvas.height + tileSize;
-            
-            for (let x = startX; x < endX; x += tileSize) {
-                for (let y = startY; y < endY; y += tileSize) {
-                    ctx.drawImage(images.groundTile, x, y, tileSize, tileSize);
+            if (!images.groundTile) {
+                // Fallback: draw a simple grid
+                const tileSize = 64;
+                const startX = Math.floor(gameState.camera.x / tileSize) * tileSize;
+                const startY = Math.floor(gameState.camera.y / tileSize) * tileSize;
+                const endX = startX + gameCanvas.width + tileSize;
+                const endY = startY + gameCanvas.height + tileSize;
+                
+                for (let x = startX; x < endX; x += tileSize) {
+                    for (let y = startY; y < endY; y += tileSize) {
+                        ctx.fillStyle = (Math.floor(x / tileSize) + Math.floor(y / tileSize)) % 2 === 0 ? '#2c3e50' : '#34495e';
+                        ctx.fillRect(x, y, tileSize, tileSize);
+                    }
+                }
+            } else {
+                const tileSize = 64;
+                const startX = Math.floor(gameState.camera.x / tileSize) * tileSize;
+                const startY = Math.floor(gameState.camera.y / tileSize) * tileSize;
+                const endX = startX + gameCanvas.width + tileSize;
+                const endY = startY + gameCanvas.height + tileSize;
+                
+                for (let x = startX; x < endX; x += tileSize) {
+                    for (let y = startY; y < endY; y += tileSize) {
+                        ctx.drawImage(images.groundTile, x, y, tileSize, tileSize);
+                    }
                 }
             }
         }
@@ -1732,7 +1771,7 @@
                 img = images.playerIdle[gameState.player.animationFrame];
             }
             
-            if (img) {
+            if (img && img.complete && img.naturalWidth !== 0) {
                 ctx.drawImage(img, gameState.player.x - size/2, gameState.player.y - size/2, size, size);
             } else {
                 // Fallback to circle if image not loaded
@@ -1740,6 +1779,23 @@
                 ctx.beginPath();
                 ctx.arc(gameState.player.x, gameState.player.y, gameState.player.size, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // Draw a simple sword indicator
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(gameState.player.x, gameState.player.y);
+                
+                let swordX = gameState.player.x;
+                let swordY = gameState.player.y;
+                
+                if (gameState.player.direction === 'up') swordY -= 30;
+                else if (gameState.player.direction === 'down') swordY += 30;
+                else if (gameState.player.direction === 'left') swordX -= 30;
+                else if (gameState.player.direction === 'right') swordX += 30;
+                
+                ctx.lineTo(swordX, swordY);
+                ctx.stroke();
             }
         }
 
@@ -1747,7 +1803,7 @@
             const size = 64; // 64x64 sprite
             
             gameState.enemies.forEach(enemy => {
-                if (images.enemy) {
+                if (images.enemy && images.enemy.complete && images.enemy.naturalWidth !== 0) {
                     ctx.drawImage(images.enemy, enemy.x - size/2, enemy.y - size/2, size, size);
                 } else {
                     // Fallback to circle if image not loaded
@@ -1781,7 +1837,7 @@
             const size = 64; // 64x64 sprite
             
             gameState.swordSwings.forEach(swing => {
-                if (images.swordSwing[swing.frame]) {
+                if (images.swordSwing[swing.frame] && images.swordSwing[swing.frame].complete && images.swordSwing[swing.frame].naturalWidth !== 0) {
                     // Adjust position based on direction
                     let x = swing.x - size/2;
                     let y = swing.y - size/2;
@@ -1798,6 +1854,13 @@
                     }
                     
                     ctx.drawImage(images.swordSwing[swing.frame], x, y, size, size);
+                } else {
+                    // Fallback: draw a simple arc for sword swing
+                    ctx.strokeStyle = '#f1c40f';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.arc(swing.x, swing.y, 40, 0, Math.PI * 2);
+                    ctx.stroke();
                 }
             });
         }
