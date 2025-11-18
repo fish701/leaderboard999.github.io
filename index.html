@@ -1096,7 +1096,8 @@
                 direction: 'down', // 'up', 'down', 'left', 'right'
                 isMoving: false,
                 animationFrame: 0,
-                lastAnimationUpdate: 0
+                lastAnimationUpdate: 0,
+                attackRange: 100 // NEW: Increased attack range
             },
             enemies: [],
             swordSwings: [],
@@ -1108,7 +1109,7 @@
             }
         };
         
-        // Image assets - FIXED: Now uses a function to create placeholder images when real images fail to load
+        // Image assets
         const images = {
             // Player animations
             playerIdle: [],
@@ -1133,7 +1134,7 @@
             return canvas;
         }
         
-        // Load all images - FIXED: Better error handling and fallbacks
+        // Load all images
         function loadImages() {
             return new Promise((resolve) => {
                 let imagesToLoad = 0;
@@ -1221,14 +1222,14 @@
                 // REPLACE WITH YOUR OWN IMAGE PATHS
                 images.groundTile.src = 'images/tile.png';
                 
-                // Load sword swing frames (1-3)
+                // Load sword swing frames (1-3) - UPDATED: Now 128x128
                 for (let i = 1; i <= 3; i++) {
                     imagesToLoad++;
                     const img = new Image();
                     img.onload = imageLoaded;
                     img.onerror = () => {
                         console.warn(`Failed to load swing_effect_frame${i}.png, using fallback`);
-                        const fallback = createFallbackImage(64, 64, '#f1c40f');
+                        const fallback = createFallbackImage(128, 128, '#f1c40f');
                         images.swordSwing.push(fallback);
                         imageLoaded();
                     };
@@ -1469,13 +1470,20 @@
             });
         }
 
-        // Game Functions - FIXED: Better error handling and fallback rendering
+        // Game Functions
         async function startGame() {
             // Check if user has a bound player
             if (!userBoundPlayer) {
                 alert("You need to link your account to a player to enter the world");
                 return;
             }
+            
+            // Set canvas to render crisp images
+            ctx.imageSmoothingEnabled = false;
+            ctx.webkitImageSmoothingEnabled = false;
+            ctx.mozImageSmoothingEnabled = false;
+            ctx.msImageSmoothingEnabled = false;
+            ctx.oImageSmoothingEnabled = false;
             
             // Load images first
             try {
@@ -1509,7 +1517,8 @@
                     direction: 'down',
                     isMoving: false,
                     animationFrame: 0,
-                    lastAnimationUpdate: 0
+                    lastAnimationUpdate: 0,
+                    attackRange: 100 + (playerLevel - 1) * 10 // Increased attack range that scales with level
                 },
                 enemies: [],
                 swordSwings: [],
@@ -1659,14 +1668,34 @@
         }
 
         function attack() {
-            // Create a sword swing effect
+            // Create a sword swing effect with proper positioning based on direction
+            let offsetX = 0;
+            let offsetY = 0;
+            
+            // Position the swing effect in front of the player based on direction
+            switch (gameState.player.direction) {
+                case 'up':
+                    offsetY = -40;
+                    break;
+                case 'down':
+                    offsetY = 40;
+                    break;
+                case 'left':
+                    offsetX = -40;
+                    break;
+                case 'right':
+                    offsetX = 40;
+                    break;
+            }
+            
             gameState.swordSwings.push({
-                x: gameState.player.x,
-                y: gameState.player.y,
+                x: gameState.player.x + offsetX,
+                y: gameState.player.y + offsetY,
                 direction: gameState.player.direction,
                 frame: 0,
                 lifetime: 300, // ms
-                damage: gameState.damage
+                damage: gameState.damage,
+                radius: gameState.player.attackRange // Use the player's attack range
             });
         }
 
@@ -1692,13 +1721,14 @@
                     }
                 }
                 
-                // Check collision with sword swings
+                // Check collision with sword swings - UPDATED: Use attack range
                 gameState.swordSwings.forEach(swing => {
                     const swingDx = swing.x - enemy.x;
                     const swingDy = swing.y - enemy.y;
                     const swingDistance = Math.sqrt(swingDx * swingDx + swingDy * swingDy);
                     
-                    if (swingDistance < gameState.player.size + enemy.size) {
+                    // Use the swing's radius (player's attack range) for collision detection
+                    if (swingDistance < swing.radius + enemy.size) {
                         enemy.health -= swing.damage;
                         
                         if (enemy.health <= 0) {
@@ -1834,32 +1864,63 @@
         }
 
         function drawSwordSwings() {
-            const size = 64; // 64x64 sprite
+            // UPDATED: Swing effect is now 128x128 and properly rotated
+            const size = 128; // Increased to 128x128
             
             gameState.swordSwings.forEach(swing => {
                 if (images.swordSwing[swing.frame] && images.swordSwing[swing.frame].complete && images.swordSwing[swing.frame].naturalWidth !== 0) {
-                    // Adjust position based on direction
-                    let x = swing.x - size/2;
-                    let y = swing.y - size/2;
+                    // Save the current context state
+                    ctx.save();
                     
-                    // Offset the swing effect based on direction
-                    if (swing.direction === 'up') {
-                        y -= 20;
-                    } else if (swing.direction === 'down') {
-                        y += 20;
-                    } else if (swing.direction === 'left') {
-                        x -= 20;
-                    } else if (swing.direction === 'right') {
-                        x += 20;
+                    // Move to the swing position
+                    ctx.translate(swing.x, swing.y);
+                    
+                    // Rotate based on direction
+                    let rotation = 0;
+                    switch (swing.direction) {
+                        case 'up':
+                            rotation = 0;
+                            break;
+                        case 'down':
+                            rotation = Math.PI;
+                            break;
+                        case 'left':
+                            rotation = -Math.PI / 2;
+                            break;
+                        case 'right':
+                            rotation = Math.PI / 2;
+                            break;
                     }
+                    ctx.rotate(rotation);
                     
-                    ctx.drawImage(images.swordSwing[swing.frame], x, y, size, size);
+                    // Draw the image centered at the translation point
+                    ctx.drawImage(images.swordSwing[swing.frame], -size/2, -size/2, size, size);
+                    
+                    // Restore the context state
+                    ctx.restore();
                 } else {
-                    // Fallback: draw a simple arc for sword swing
+                    // Fallback: draw a simple arc for sword swing with larger radius
                     ctx.strokeStyle = '#f1c40f';
                     ctx.lineWidth = 5;
                     ctx.beginPath();
-                    ctx.arc(swing.x, swing.y, 40, 0, Math.PI * 2);
+                    ctx.arc(swing.x, swing.y, swing.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Draw direction indicator
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(swing.x, swing.y);
+                    
+                    let indicatorX = swing.x;
+                    let indicatorY = swing.y;
+                    
+                    if (swing.direction === 'up') indicatorY -= swing.radius;
+                    else if (swing.direction === 'down') indicatorY += swing.radius;
+                    else if (swing.direction === 'left') indicatorX -= swing.radius;
+                    else if (swing.direction === 'right') indicatorX += swing.radius;
+                    
+                    ctx.lineTo(indicatorX, indicatorY);
                     ctx.stroke();
                 }
             });
@@ -2373,3 +2434,4 @@
     </script>
 </body>
 </html>
+
