@@ -1097,7 +1097,7 @@
                 isMoving: false,
                 animationFrame: 0,
                 lastAnimationUpdate: 0,
-                attackRange: 100 // NEW: Increased attack range
+                attackRange: 100
             },
             enemies: [],
             swordSwings: [],
@@ -1117,6 +1117,11 @@
             playerWalkDown: [],
             // Enemy
             enemy: null,
+            enemyHit: null,
+            // Powered Enemy
+            poweredEnemy: null,
+            poweredEnemyHit1: null,
+            poweredEnemyHit2: null,
             // Ground tile
             groundTile: null,
             // Sword swing effect
@@ -1134,7 +1139,7 @@
             return canvas;
         }
         
-        // Load all images
+        // Load all images - UPDATED: Added new enemy images
         function loadImages() {
             return new Promise((resolve) => {
                 let imagesToLoad = 0;
@@ -1198,7 +1203,7 @@
                     images.playerWalkDown.push(img);
                 }
                 
-                // Load enemy image
+                // Load regular enemy image
                 imagesToLoad++;
                 images.enemy = new Image();
                 images.enemy.onload = imageLoaded;
@@ -1209,6 +1214,54 @@
                 };
                 // REPLACE WITH YOUR OWN IMAGE PATHS
                 images.enemy.src = 'images/enemy.png';
+                
+                // Load regular enemy hit image
+                imagesToLoad++;
+                images.enemyHit = new Image();
+                images.enemyHit.onload = imageLoaded;
+                images.enemyHit.onerror = () => {
+                    console.warn('Failed to load enemy_hit.png, using fallback');
+                    images.enemyHit = createFallbackImage(64, 64, '#ff6b6b');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.enemyHit.src = 'images/enemy_hit.png';
+                
+                // Load powered enemy image
+                imagesToLoad++;
+                images.poweredEnemy = new Image();
+                images.poweredEnemy.onload = imageLoaded;
+                images.poweredEnemy.onerror = () => {
+                    console.warn('Failed to load powered_enemy.png, using fallback');
+                    images.poweredEnemy = createFallbackImage(64, 64, '#9b59b6');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.poweredEnemy.src = 'images/powered_enemy.png';
+                
+                // Load powered enemy hit1 image
+                imagesToLoad++;
+                images.poweredEnemyHit1 = new Image();
+                images.poweredEnemyHit1.onload = imageLoaded;
+                images.poweredEnemyHit1.onerror = () => {
+                    console.warn('Failed to load powered_enemy_hit1.png, using fallback');
+                    images.poweredEnemyHit1 = createFallbackImage(64, 64, '#8e44ad');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.poweredEnemyHit1.src = 'images/powered_enemy_hit1.png';
+                
+                // Load powered enemy hit2 image
+                imagesToLoad++;
+                images.poweredEnemyHit2 = new Image();
+                images.poweredEnemyHit2.onload = imageLoaded;
+                images.poweredEnemyHit2.onerror = () => {
+                    console.warn('Failed to load powered_enemy_hit2.png, using fallback');
+                    images.poweredEnemyHit2 = createFallbackImage(64, 64, '#7d3c98');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.poweredEnemyHit2.src = 'images/powered_enemy_hit2.png';
                 
                 // Load ground tile
                 imagesToLoad++;
@@ -1560,7 +1613,7 @@
             
             // Update game state
             updatePlayer(deltaTime, currentTime);
-            updateEnemies(deltaTime);
+            updateEnemies(deltaTime, currentTime);
             updateSwordSwings(deltaTime);
             
             // Update camera to follow player
@@ -1699,7 +1752,8 @@
             });
         }
 
-        function updateEnemies(deltaTime) {
+        // UPDATED: Added attack cooldown for enemies and enhanced enemy types
+        function updateEnemies(deltaTime, currentTime) {
             // Move enemies toward player
             gameState.enemies.forEach(enemy => {
                 const dx = gameState.player.x - enemy.x;
@@ -1711,9 +1765,11 @@
                     enemy.y += (dy / distance) * enemy.speed;
                 }
                 
-                // Check collision with player
-                if (distance < gameState.player.size + enemy.size) {
+                // Check collision with player (with attack cooldown)
+                if (distance < gameState.player.size + enemy.size && 
+                    currentTime - enemy.lastAttack > enemy.attackCooldown) {
                     gameState.health -= enemy.damage;
+                    enemy.lastAttack = currentTime;
                     updateGameUI(); // Update health bar when taking damage
                     
                     if (gameState.health <= 0) {
@@ -1721,7 +1777,7 @@
                     }
                 }
                 
-                // Check collision with sword swings - UPDATED: Use attack range
+                // Check collision with sword swings
                 gameState.swordSwings.forEach(swing => {
                     const swingDx = swing.x - enemy.x;
                     const swingDy = swing.y - enemy.y;
@@ -1733,7 +1789,7 @@
                         
                         if (enemy.health <= 0) {
                             // Add to session score only, doesn't affect leaderboard
-                            gameState.score += 10 * gameState.level;
+                            gameState.score += enemy.type === 'powered' ? 50 : 10 * gameState.level;
                             updateGameUI();
                         }
                     }
@@ -1759,6 +1815,7 @@
             gameState.swordSwings = gameState.swordSwings.filter(swing => swing.lifetime > 0);
         }
 
+        // UPDATED: Enhanced enemy spawning with new enemy types and increased health
         function spawnEnemies(count) {
             for (let i = 0; i < count; i++) {
                 // Spawn enemy at random position around player
@@ -1768,19 +1825,43 @@
                 const x = gameState.player.x + Math.cos(angle) * distance;
                 const y = gameState.player.y + Math.sin(angle) * distance;
                 
-                // Enemy level scales more slowly with player level
+                // Enemy level scales with player level
                 const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
                 
-                gameState.enemies.push({
-                    x: x,
-                    y: y,
-                    size: 32, // Adjusted for 64x64 sprite
-                    speed: 1 + Math.random() * 1.5,
-                    health: 20 + enemyLevel * 8, // Slower health growth
-                    maxHealth: 20 + enemyLevel * 8,
-                    damage: 5 + enemyLevel * 1.5, // Slower damage growth
-                    level: enemyLevel
-                });
+                // Determine enemy type (regular or powered)
+                const isPowered = Math.random() < 0.2 + (gameState.level * 0.02); // More likely at higher levels
+                
+                if (isPowered) {
+                    // Powered enemy - much stronger
+                    gameState.enemies.push({
+                        x: x,
+                        y: y,
+                        size: 40, // Larger than regular enemies
+                        speed: 1.5 + Math.random() * 1.0,
+                        health: 100 + enemyLevel * 25, // Much more health
+                        maxHealth: 100 + enemyLevel * 25,
+                        damage: 15 + enemyLevel * 3, // More damage
+                        level: enemyLevel,
+                        type: 'powered',
+                        lastAttack: 0,
+                        attackCooldown: 1500 // Slower attacks but more damaging
+                    });
+                } else {
+                    // Regular enemy
+                    gameState.enemies.push({
+                        x: x,
+                        y: y,
+                        size: 32,
+                        speed: 1 + Math.random() * 1.5,
+                        health: 50 + enemyLevel * 15, // Increased health
+                        maxHealth: 50 + enemyLevel * 15,
+                        damage: 5 + enemyLevel * 1.5,
+                        level: enemyLevel,
+                        type: 'regular',
+                        lastAttack: 0,
+                        attackCooldown: 1000 // 1 second cooldown
+                    });
+                }
             }
         }
 
@@ -1829,15 +1910,38 @@
             }
         }
 
+        // UPDATED: Enhanced enemy drawing with different images based on health and type
         function drawEnemies() {
             const size = 64; // 64x64 sprite
             
             gameState.enemies.forEach(enemy => {
-                if (images.enemy && images.enemy.complete && images.enemy.naturalWidth !== 0) {
-                    ctx.drawImage(images.enemy, enemy.x - size/2, enemy.y - size/2, size, size);
+                let img;
+                
+                if (enemy.type === 'powered') {
+                    // Powered enemy with multiple health states
+                    if (enemy.health / enemy.maxHealth <= 0.3) {
+                        img = images.poweredEnemyHit2;
+                    } else if (enemy.health / enemy.maxHealth <= 0.6) {
+                        img = images.poweredEnemyHit1;
+                    } else {
+                        img = images.poweredEnemy;
+                    }
+                } else {
+                    // Regular enemy with hit state
+                    if (enemy.health / enemy.maxHealth <= 0.5) {
+                        img = images.enemyHit;
+                    } else {
+                        img = images.enemy;
+                    }
+                }
+                
+                const drawSize = enemy.type === 'powered' ? 80 : 64;
+                
+                if (img && img.complete && img.naturalWidth !== 0) {
+                    ctx.drawImage(img, enemy.x - drawSize/2, enemy.y - drawSize/2, drawSize, drawSize);
                 } else {
                     // Fallback to circle if image not loaded
-                    ctx.fillStyle = '#ff6b6b';
+                    ctx.fillStyle = enemy.type === 'powered' ? '#9b59b6' : '#ff6b6b';
                     ctx.beginPath();
                     ctx.arc(enemy.x, enemy.y, enemy.size, 0, Math.PI * 2);
                     ctx.fill();
@@ -1845,21 +1949,36 @@
                 
                 // Draw enemy health bar
                 const barWidth = enemy.size * 2;
-                const barHeight = 4;
+                const barHeight = 6;
                 const barX = enemy.x - barWidth / 2;
-                const barY = enemy.y - enemy.size - 8;
+                const barY = enemy.y - enemy.size - 12;
                 
                 ctx.fillStyle = '#333';
                 ctx.fillRect(barX, barY, barWidth, barHeight);
                 
-                ctx.fillStyle = '#4cd137';
+                // Change health bar color based on health percentage
+                let healthColor = '#4cd137'; // Green
+                if (enemy.health / enemy.maxHealth <= 0.5) {
+                    healthColor = '#ffa502'; // Orange
+                }
+                if (enemy.health / enemy.maxHealth <= 0.25) {
+                    healthColor = '#ff4757'; // Red
+                }
+                
+                ctx.fillStyle = healthColor;
                 ctx.fillRect(barX, barY, barWidth * (enemy.health / enemy.maxHealth), barHeight);
                 
-                // Draw enemy level
+                // Draw enemy level and type
                 ctx.fillStyle = '#ffffff';
                 ctx.font = '12px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText(`Lv.${enemy.level}`, enemy.x, enemy.y + enemy.size + 12);
+                
+                let enemyText = `Lv.${enemy.level}`;
+                if (enemy.type === 'powered') {
+                    enemyText = `Lv.${enemy.level} ⭐`;
+                }
+                
+                ctx.fillText(enemyText, enemy.x, enemy.y + enemy.size + 15);
             });
         }
 
@@ -2434,4 +2553,3 @@
     </script>
 </body>
 </html>
-
