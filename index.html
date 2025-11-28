@@ -1019,7 +1019,7 @@
                 <!-- Auth content will be populated by JavaScript -->
             </div>
             <h1>Leaderboard</h1>
-            <p class="subtitle">Top performers ranked by exam scores</p>
+            <p class="subtitle">Top performers ranked by scores</p>
             
             <!-- View Report Button (only for linked players) -->
             <div id="viewReportSection" style="display: none; text-align: left; margin-top: 15px;">
@@ -1098,8 +1098,12 @@
                     </div>
                 </div>
                 <div class="stat">
-                    <div class="stat-label">Damage</div>
-                    <div class="stat-value" id="gameDamage">10</div>
+                    <div class="stat-label">Survival Time</div>
+                    <div class="stat-value" id="survivalTime">0s</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Enemies</div>
+                    <div class="stat-value" id="enemyCount">0</div>
                 </div>
             </div>
             <div class="game-controls">
@@ -1230,13 +1234,13 @@
     <div class="modal" id="reportModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Academic Performance Report</h2>
+                <h2>Performance Report</h2>
                 <button class="close-btn" id="closeReportModal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="report-header">
-                    <h3 id="reportPlayerName">Student Report</h3>
-                    <p>Academic strengths and weaknesses analysis</p>
+                    <h3 id="reportPlayerName">Player Report</h3>
+                    <p>Performance statistics and achievements</p>
                 </div>
                 <div class="radar-chart-container">
                     <canvas id="radarChart"></canvas>
@@ -1283,7 +1287,8 @@
         const gameScore = document.getElementById('gameScore');
         const gameLevel = document.getElementById('gameLevel');
         const healthBar = document.getElementById('healthBar');
-        const gameDamage = document.getElementById('gameDamage');
+        const survivalTime = document.getElementById('survivalTime');
+        const enemyCount = document.getElementById('enemyCount');
         const exitGameBtn = document.getElementById('exitGameBtn');
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
@@ -1317,8 +1322,16 @@
             level: 1,
             health: 100,
             maxHealth: 100,
-            damage: 10,
             isPlaying: false,
+            survivalTime: 0,
+            gameStartTime: 0,
+            longestSurvivalTime: 0,
+            enemySpawnTimer: 0,
+            enemySpawnInterval: 3000, // Start with 3 seconds between spawns
+            minEnemySpawnInterval: 500, // Minimum spawn interval
+            enemySpawnRateIncrease: 100, // How much to decrease interval over time
+            enemySpawnRateTimer: 0,
+            enemySpawnRateInterval: 10000, // Increase spawn rate every 10 seconds
             player: {
                 x: 400,
                 y: 300,
@@ -1868,7 +1881,7 @@
             const total = maths + physics + chemistry + biology + english;
             
             // Update report header
-            reportPlayerName.textContent = `${userBoundPlayer.name}'s Academic Report`;
+            reportPlayerName.textContent = `${userBoundPlayer.name}'s Performance Report`;
             
             // Calculate game stats based on exam scores
             const speed = maths + total / 10;
@@ -1878,32 +1891,20 @@
             // Update stats display
             reportStats.innerHTML = `
                 <div class="stat-card">
-                    <h4>Maths Score</h4>
-                    <div class="value">${maths}</div>
-                </div>
-                <div class="stat-card">
-                    <h4>Sciences Score</h4>
-                    <div class="value">${physics + chemistry + biology}</div>
-                </div>
-                <div class="stat-card">
-                    <h4>English Score</h4>
-                    <div class="value">${english}</div>
-                </div>
-                <div class="stat-card">
                     <h4>Total Score</h4>
-                    <div class="value">${total}</div>
+                    <div class="value">${userBoundPlayer.score}</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Game Speed</h4>
-                    <div class="value">${speed.toFixed(1)}</div>
+                    <h4>Player Level</h4>
+                    <div class="value">${calculateLevelAndProgress(userBoundPlayer.score).level}</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Game Health</h4>
-                    <div class="value">${health.toFixed(1)}</div>
+                    <h4>Longest Survival</h4>
+                    <div class="value">${userBoundPlayer.longestSurvivalTime || 0}s</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Game Attack</h4>
-                    <div class="value">${attack.toFixed(1)}</div>
+                    <h4>Games Played</h4>
+                    <div class="value">${userBoundPlayer.gamesPlayed || 0}</div>
                 </div>
             `;
             
@@ -1912,47 +1913,53 @@
                 radarChart.destroy();
             }
             
-            // Create radar chart
-            const ctx = radarChartCanvas.getContext('2d');
-            radarChart = new Chart(ctx, {
-                type: 'radar',
-                data: {
-                    labels: ['Maths', 'Physics', 'Chemistry', 'Biology', 'English'],
-                    datasets: [{
-                        label: 'Exam Scores',
-                        data: [maths, physics, chemistry, biology, english],
-                        backgroundColor: 'rgba(74, 100, 145, 0.2)',
-                        borderColor: 'rgba(74, 100, 145, 1)',
-                        pointBackgroundColor: 'rgba(74, 100, 145, 1)',
-                        pointBorderColor: '#fff',
-                        pointHoverBackgroundColor: '#fff',
-                        pointHoverBorderColor: 'rgba(74, 100, 145, 1)'
-                    }]
-                },
-                options: {
-                    scales: {
-                        r: {
-                            angleLines: {
-                                display: true
-                            },
-                            suggestedMin: 0,
-                            suggestedMax: 100
-                        }
+            // Only create radar chart if there are exam scores
+            if (total > 0) {
+                // Create radar chart
+                const ctx = radarChartCanvas.getContext('2d');
+                radarChart = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: ['Maths', 'Physics', 'Chemistry', 'Biology', 'English'],
+                        datasets: [{
+                            label: 'Exam Scores',
+                            data: [maths, physics, chemistry, biology, english],
+                            backgroundColor: 'rgba(74, 100, 145, 0.2)',
+                            borderColor: 'rgba(74, 100, 145, 1)',
+                            pointBackgroundColor: 'rgba(74, 100, 145, 1)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgba(74, 100, 145, 1)'
+                        }]
                     },
-                    plugins: {
-                        legend: {
-                            display: false
+                    options: {
+                        scales: {
+                            r: {
+                                angleLines: {
+                                    display: true
+                                },
+                                suggestedMin: 0,
+                                suggestedMax: 100
+                            }
                         },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.label}: ${context.raw}`;
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: ${context.raw}`;
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
+            } else {
+                // Hide the chart if no exam data
+                radarChartCanvas.style.display = 'none';
+            }
             
             // Show the modal
             reportModal.style.display = 'flex';
@@ -2054,36 +2061,41 @@
                 // Continue even if images fail to load - we have fallback rendering
             }
             
-            // Calculate player stats based on exam scores
-            const exams = userBoundPlayer.exams || {};
-            const maths = exams.maths || 0;
-            const physics = exams.physics || 0;
-            const chemistry = exams.chemistry || 0;
-            const biology = exams.biology || 0;
-            const english = exams.english || 0;
-            const total = maths + physics + chemistry + biology + english;
+            // Get player stats from database
+            const playerData = userBoundPlayer;
             
-            // Calculate game stats based on exam scores
-            const baseSpeed = maths + total / 10;
-            const baseHealth = (physics + chemistry + biology) + total / 10;
-            const baseAttack = english + total / 10;
+            // Calculate game stats based on player data
+            const baseSpeed = 5;
+            const baseHealth = 100;
+            const baseAttack = 10;
             
             // Calculate player level from leaderboard score
-            const playerLevel = calculateLevelAndProgress(userBoundPlayer.score).level;
+            const playerLevel = calculateLevelAndProgress(playerData.score).level;
             
-            // Reset game state with player's stats based on their exam scores
+            // Get longest survival time from player data
+            const longestSurvival = playerData.longestSurvivalTime || 0;
+            
+            // Reset game state with player's stats
             gameState = {
                 score: 0, // Session score only, doesn't affect leaderboard
                 level: playerLevel, // Fixed level based on leaderboard
-                health: 50 + baseHealth * 2, // Base health scaled by exam scores
-                maxHealth: 50 + baseHealth * 2,
-                damage: 5 + baseAttack, // Base damage scaled by exam scores
+                health: baseHealth, // Base health
+                maxHealth: baseHealth,
                 isPlaying: true,
+                survivalTime: 0,
+                gameStartTime: performance.now(),
+                longestSurvivalTime: longestSurvival,
+                enemySpawnTimer: 0,
+                enemySpawnInterval: 3000, // Start with 3 seconds between spawns
+                minEnemySpawnInterval: 500, // Minimum spawn interval
+                enemySpawnRateIncrease: 100, // How much to decrease interval over time
+                enemySpawnRateTimer: 0,
+                enemySpawnRateInterval: 10000, // Increase spawn rate every 10 seconds
                 player: {
                     x: 400,
                     y: 300,
                     size: 32, // Adjusted for 64x64 sprite
-                    speed: 3 + baseSpeed / 10, // Base speed scaled by exam scores
+                    speed: baseSpeed, // Base speed
                     color: '#4cd137',
                     lastAttack: 0,
                     attackCooldown: 500 - (playerLevel - 1) * 25, // Faster attacks for higher levels (min 200ms)
@@ -2091,7 +2103,7 @@
                     isMoving: false,
                     animationFrame: 0,
                     lastAnimationUpdate: 0,
-                    attackRange: 80 + baseAttack * 2 // Attack range scaled by exam scores
+                    attackRange: 80 + baseAttack * 2 // Attack range
                 },
                 enemies: [],
                 swordSwings: [],
@@ -2129,7 +2141,8 @@
         function updateGameUI() {
             gameScore.textContent = gameState.score;
             gameLevel.textContent = gameState.level;
-            gameDamage.textContent = gameState.damage;
+            survivalTime.textContent = `${Math.floor(gameState.survivalTime / 1000)}s`;
+            enemyCount.textContent = gameState.enemies.length;
             healthBar.style.width = `${(gameState.health / gameState.maxHealth) * 100}%`;
         }
 
@@ -2138,6 +2151,34 @@
             
             const deltaTime = currentTime - gameState.lastTime;
             gameState.lastTime = currentTime;
+            
+            // Update survival time
+            gameState.survivalTime = currentTime - gameState.gameStartTime;
+            
+            // Update enemy spawn timers
+            gameState.enemySpawnTimer += deltaTime;
+            gameState.enemySpawnRateTimer += deltaTime;
+            
+            // Increase enemy spawn rate over time
+            if (gameState.enemySpawnRateTimer >= gameState.enemySpawnRateInterval) {
+                gameState.enemySpawnRateTimer = 0;
+                // Decrease spawn interval (making enemies spawn more frequently)
+                gameState.enemySpawnInterval = Math.max(
+                    gameState.minEnemySpawnInterval,
+                    gameState.enemySpawnInterval - gameState.enemySpawnRateIncrease
+                );
+                console.log(`Enemy spawn rate increased! New interval: ${gameState.enemySpawnInterval}ms`);
+            }
+            
+            // Spawn new enemies based on timer
+            if (gameState.enemySpawnTimer >= gameState.enemySpawnInterval) {
+                gameState.enemySpawnTimer = 0;
+                // Spawn more enemies as time progresses
+                const timeFactor = Math.floor(gameState.survivalTime / 30000); // More enemies every 30 seconds
+                const baseEnemies = 1 + Math.floor(gameState.level / 3);
+                const additionalEnemies = Math.min(5, timeFactor); // Cap at 5 additional enemies
+                spawnEnemies(baseEnemies + additionalEnemies);
+            }
             
             // Clear canvas
             ctx.fillStyle = '#162447';
@@ -2165,6 +2206,9 @@
             
             // Restore the canvas state
             ctx.restore();
+            
+            // Update UI
+            updateGameUI();
             
             // Continue game loop
             requestAnimationFrame(gameLoop);
@@ -2309,7 +2353,7 @@
                 direction: gameState.player.direction,
                 frame: 0,
                 lifetime: 300, // ms
-                damage: gameState.damage,
+                damage: 10 + gameState.level * 2, // Damage increases with level
                 radius: gameState.player.attackRange, // Use the player's attack range
                 id: swingId, // Unique ID for this swing
                 hitEnemies: [] // Track which enemies this swing has already hit
@@ -2363,12 +2407,8 @@
                 });
             });
             
-            // Remove dead enemies and spawn new ones
+            // Remove dead enemies
             gameState.enemies = gameState.enemies.filter(enemy => enemy.health > 0);
-            
-            if (gameState.enemies.length < 3 + Math.floor(gameState.level / 2)) {
-                spawnEnemies(1);
-            }
         }
 
         function updateSwordSwings(deltaTime) {
@@ -2391,11 +2431,13 @@
                 const x = gameState.player.x + Math.cos(angle) * distance;
                 const y = gameState.player.y + Math.sin(angle) * distance;
                 
-                // Enemy level scales with player level
-                const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
+                // Enemy level scales with player level and survival time
+                const timeFactor = Math.floor(gameState.survivalTime / 60000); // Stronger enemies every minute
+                const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1 + timeFactor;
                 
-                // Determine enemy type (regular or powered)
-                const isPowered = Math.random() < 0.2 + (gameState.level * 0.02); // More likely at higher levels
+                // Determine enemy type (regular or powered) - more powered enemies over time
+                const poweredChance = 0.2 + (gameState.level * 0.02) + (timeFactor * 0.05);
+                const isPowered = Math.random() < poweredChance;
                 
                 // Create a unique ID for this enemy
                 const enemyId = Date.now() + Math.random();
@@ -2615,8 +2657,30 @@
             });
         }
 
-        function gameOver() {
+        async function gameOver() {
             gameState.isPlaying = false;
+            
+            // Calculate survival time in seconds
+            const survivalTimeSeconds = Math.floor(gameState.survivalTime / 1000);
+            
+            // Update player's longest survival time if this is a new record
+            if (survivalTimeSeconds > gameState.longestSurvivalTime) {
+                gameState.longestSurvivalTime = survivalTimeSeconds;
+                
+                // Update in Firebase if user is bound to a player
+                if (userBoundPlayer) {
+                    try {
+                        const playerDoc = window.firebaseDoc(db, 'players', userBoundPlayer.id);
+                        await window.firebaseUpdateDoc(playerDoc, {
+                            longestSurvivalTime: survivalTimeSeconds,
+                            gamesPlayed: (userBoundPlayer.gamesPlayed || 0) + 1
+                        });
+                        console.log(`New survival record: ${survivalTimeSeconds} seconds`);
+                    } catch (error) {
+                        console.error('Error updating survival record:', error);
+                    }
+                }
+            }
             
             // Draw game over screen
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -2628,17 +2692,18 @@
             ctx.fillText('GAME OVER', gameCanvas.width / 2, gameCanvas.height / 2 - 50);
             
             ctx.font = '24px Arial';
-            ctx.fillText(`Session Score: ${gameState.score}`, gameCanvas.width / 2, gameCanvas.height / 2);
-            ctx.fillText(`Your Level: ${gameState.level}`, gameCanvas.width / 2, gameCanvas.height / 2 + 40);
+            ctx.fillText(`Survival Time: ${survivalTimeSeconds} seconds`, gameCanvas.width / 2, gameCanvas.height / 2);
+            ctx.fillText(`Session Score: ${gameState.score}`, gameCanvas.width / 2, gameCanvas.height / 2 + 40);
+            ctx.fillText(`Your Level: ${gameState.level}`, gameCanvas.width / 2, gameCanvas.height / 2 + 80);
             
-            // Note: We're not saving the score to the leaderboard anymore
+            if (survivalTimeSeconds > gameState.longestSurvivalTime) {
+                ctx.fillText('NEW SURVIVAL RECORD!', gameCanvas.width / 2, gameCanvas.height / 2 + 120);
+            }
         }
 
         function exitGame() {
             gameState.isPlaying = false;
             gameContainer.style.display = 'none';
-            
-            // Note: We're not saving the score to the leaderboard anymore
         }
 
         // Keyboard event handlers
@@ -2717,7 +2782,9 @@
                         name: data.name,
                         score: data.score,
                         googleAccount: data.googleAccount || null,
-                        exams: data.exams || null
+                        exams: data.exams || null,
+                        longestSurvivalTime: data.longestSurvivalTime || 0,
+                        gamesPlayed: data.gamesPlayed || 0
                     });
                 });
                 
@@ -2839,6 +2906,9 @@
                             <div class="name">${player.name}</div>
                             <div style="font-size: 0.8rem; color: #6c757d;">
                                 Score: ${player.score} | Level: ${level} | Progress: ${progress}%
+                            </div>
+                            <div style="font-size: 0.7rem; color: #6c757d;">
+                                Survival: ${player.longestSurvivalTime || 0}s | Games: ${player.gamesPlayed || 0}
                             </div>
                             ${accountInfo}
                         </div>
