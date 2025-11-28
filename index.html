@@ -2300,6 +2300,9 @@
                     break;
             }
             
+            // Create a unique ID for this sword swing to track which enemies it has hit
+            const swingId = Date.now() + Math.random();
+            
             gameState.swordSwings.push({
                 x: gameState.player.x + offsetX,
                 y: gameState.player.y + offsetY,
@@ -2307,7 +2310,9 @@
                 frame: 0,
                 lifetime: 300, // ms
                 damage: gameState.damage,
-                radius: gameState.player.attackRange // Use the player's attack range
+                radius: gameState.player.attackRange, // Use the player's attack range
+                id: swingId, // Unique ID for this swing
+                hitEnemies: [] // Track which enemies this swing has already hit
             });
         }
 
@@ -2342,8 +2347,12 @@
                     const swingDistance = Math.sqrt(swingDx * swingDx + swingDy * swingDy);
                     
                     // Use the swing's radius (player's attack range) for collision detection
-                    if (swingDistance < swing.radius + enemy.size) {
+                    // Only damage if this swing hasn't hit this enemy yet
+                    if (swingDistance < swing.radius + enemy.size && 
+                        !swing.hitEnemies.includes(enemy.id)) {
+                        
                         enemy.health -= swing.damage;
+                        swing.hitEnemies.push(enemy.id); // Mark this enemy as hit by this swing
                         
                         if (enemy.health <= 0) {
                             // Add to session score only, doesn't affect leaderboard
@@ -2388,6 +2397,9 @@
                 // Determine enemy type (regular or powered)
                 const isPowered = Math.random() < 0.2 + (gameState.level * 0.02); // More likely at higher levels
                 
+                // Create a unique ID for this enemy
+                const enemyId = Date.now() + Math.random();
+                
                 if (isPowered) {
                     // Powered enemy - much stronger
                     gameState.enemies.push({
@@ -2401,7 +2413,8 @@
                         level: enemyLevel,
                         type: 'powered',
                         lastAttack: 0,
-                        attackCooldown: 1500 // Slower attacks but more damaging
+                        attackCooldown: 1500, // Slower attacks but more damaging
+                        id: enemyId // Unique ID for this enemy
                     });
                 } else {
                     // Regular enemy
@@ -2416,7 +2429,8 @@
                         level: enemyLevel,
                         type: 'regular',
                         lastAttack: 0,
-                        attackCooldown: 1000 // 1 second cooldown
+                        attackCooldown: 1000, // 1 second cooldown
+                        id: enemyId // Unique ID for this enemy
                     });
                 }
             }
@@ -3142,3 +3156,4 @@
     </script>
 </body>
 </html>
+
