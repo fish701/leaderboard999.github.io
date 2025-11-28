@@ -1894,6 +1894,2459 @@
                 // Draw a simple sword indicator
                 ctx.strokeStyle = '#ffffff';
                 ctx.lineWidth = 3;
+                ctx.beginPath();<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Leaderboard with Animated Game</title>
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+        import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, onSnapshot, addDoc, updateDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyD6Mnu6hUXdv4XjIty53QjjOBenTQ0gcV0",
+            authDomain: "leaderboard-f6f56.firebaseapp.com",
+            projectId: "leaderboard-f6f56",
+            storageBucket: "leaderboard-f6f56.firebasestorage.app",
+            messagingSenderId: "490760612997",
+            appId: "1:490760612997:web:e11371700e5604f8004dec",
+            measurementId: "G-8X64HDBS9G"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Configure Google Auth Provider
+        const provider = new GoogleAuthProvider();
+        provider.addScope('profile');
+        provider.addScope('email');
+        provider.setCustomParameters({
+            'prompt': 'select_account'
+        });
+        
+        // Make Firebase functions available globally
+        window.firebaseApp = app;
+        window.firebaseDb = db;
+        window.firebaseAuth = auth;
+        window.firebaseProvider = provider;
+        window.firebaseSignInWithPopup = signInWithPopup;
+        window.firebaseSignOut = signOut;
+        window.firebaseOnAuthStateChanged = onAuthStateChanged;
+        window.firebaseCollection = collection;
+        window.firebaseGetDocs = getDocs;
+        window.firebaseDoc = doc;
+        window.firebaseSetDoc = setDoc;
+        window.firebaseUpdateDoc = updateDoc;
+        window.firebaseDeleteDoc = deleteDoc;
+        window.firebaseOnSnapshot = onSnapshot;
+        window.firebaseAddDoc = addDoc;
+        window.firebaseQuery = query;
+        window.firebaseWhere = where;
+        
+        console.log('Firebase initialized successfully');
+    </script>
+    
+    <!-- Chart.js for radar chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        header {
+            background: linear-gradient(to right, #2c3e50, #4a6491);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .auth-section {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-weight: 500;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .sign-in-btn {
+            background-color: white;
+            color: #4285f4;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .sign-in-btn:hover {
+            background-color: #f8f9fa;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .sign-out-btn {
+            background-color: transparent;
+            color: white;
+            border: 1px solid white;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sign-out-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .bind-account-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .bind-account-btn:hover {
+            background-color: #218838;
+        }
+
+        .already-bound {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            font-weight: 500;
+        }
+
+        .setup-guide {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #bee5eb;
+        }
+
+        .setup-guide h4 {
+            margin-bottom: 10px;
+            color: #0c5460;
+        }
+
+        .setup-guide ol {
+            margin-left: 20px;
+        }
+
+        .setup-guide li {
+            margin-bottom: 5px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .search-box {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border: 1px solid #ced4da;
+            border-radius: 50px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #4a6491;
+            box-shadow: 0 0 0 3px rgba(74, 100, 145, 0.2);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+
+        .leaderboard {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background-color: #4a6491;
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            user-select: none;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e9ecef;
+            transition: background-color 0.3s;
+        }
+
+        tbody tr:hover {
+            background-color: #f1f3f5;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        tbody tr:nth-child(even):hover {
+            background-color: #e9ecef;
+        }
+
+        td {
+            padding: 15px;
+        }
+
+        .rank {
+            font-weight: bold;
+            text-align: center;
+            width: 80px;
+        }
+
+        .level {
+            font-weight: bold;
+            text-align: center;
+            width: 80px;
+            color: #4a6491;
+        }
+
+        .player {
+            display: flex;
+            align-items: center;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #4a6491;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .name {
+            font-weight: 600;
+        }
+
+        .score {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .medal {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .gold {
+            background-color: #ffd700;
+            color: #8b7500;
+        }
+
+        .silver {
+            background-color: #c0c0c0;
+            color: #696969;
+        }
+
+        .bronze {
+            background-color: #cd7f32;
+            color: #5a4326;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(to right, #4a6491, #6a84b1);
+            border-radius: 4px;
+        }
+
+        .linked-badge {
+            background-color: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+        }
+
+        .my-player {
+            background-color: #e8f5e8 !important;
+            border-left: 4px solid #28a745;
+        }
+
+        .my-player:hover {
+            background-color: #d4edda !important;
+        }
+
+        footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .change-btn {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+
+        .change-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .enter-world-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            margin-top: 20px;
+        }
+
+        .enter-world-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+            background: linear-gradient(45deg, #ff5252, #ff8c00);
+        }
+
+        .enter-world-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .enter-world-btn:disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .enter-world-btn:active {
+            transform: translateY(-1px);
+        }
+
+        /* Game Styles */
+        .game-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            z-index: 2000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+
+        .game-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+
+        .game-stats {
+            margin-bottom: 15px;
+        }
+
+        .stat {
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #4cd137;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .health-bar-container {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .health-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff4757, #ffa502);
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+
+        .game-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .game-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .game-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .exit-game-btn {
+            background: rgba(255, 107, 107, 0.8);
+            border-color: rgba(255, 107, 107, 0.5);
+        }
+
+        .game-canvas {
+            border: 3px solid #4a6491;
+            border-radius: 10px;
+            background: #162447;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .controls-list {
+            list-style: none;
+        }
+
+        .controls-list li {
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .key {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 8px;
+            font-family: monospace;
+        }
+
+        /* Mobile Controls */
+        .mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .mobile-joystick {
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            position: relative;
+            touch-action: none;
+        }
+
+        .joystick-handle {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            position: absolute;
+            top: 35px;
+            left: 35px;
+        }
+
+        .mobile-action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mobile-action-btn {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 107, 107, 0.7);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            color: white;
+            user-select: none;
+            touch-action: none;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(to right, #2c3e50, #4a6491);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .close-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #4a6491;
+            box-shadow: 0 0 0 3px rgba(74, 100, 145, 0.2);
+        }
+
+        .player-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .player-item:last-child {
+            border-bottom: none;
+        }
+
+        .player-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .player-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #4a6491;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #3a5479;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .btn-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background-color: #138496;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .password-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4a6491;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.9rem;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .edit-section {
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+        }
+
+        .status-message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .bind-section {
+            background-color: #e8f5e8;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+
+        .already-bound-section {
+            background-color: #e2e3e5;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #6c757d;
+        }
+
+        /* Exam Table Styles */
+        .exam-table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+        }
+
+        .exam-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .exam-table th, .exam-table td {
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .exam-table th {
+            background-color: #4a6491;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+
+        .exam-table input {
+            width: 60px;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+
+        .exam-table input:focus {
+            outline: none;
+            border-color: #4a6491;
+            box-shadow: 0 0 0 2px rgba(74, 100, 145, 0.2);
+        }
+
+        /* Radar Chart Styles */
+        .radar-chart-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .report-header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .report-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #4a6491;
+        }
+
+        .stat-card h4 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4a6491;
+        }
+
+        @media (max-width: 768px) {
+            .auth-section {
+                position: static;
+                justify-content: center;
+                margin-bottom: 15px;
+            }
+            
+            .user-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            th, td {
+                padding: 10px 8px;
+            }
+            
+            .avatar {
+                width: 32px;
+                height: 32px;
+                margin-right: 10px;
+            }
+            
+            .player-actions {
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            footer {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .game-ui, .controls-info {
+                position: relative;
+                margin: 10px;
+            }
+            
+            .game-canvas {
+                width: 95%;
+                height: auto;
+            }
+
+            .mobile-controls {
+                display: flex;
+            }
+
+            .controls-info {
+                display: none;
+            }
+
+            .report-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="auth-section" id="authSection">
+                <!-- Auth content will be populated by JavaScript -->
+            </div>
+            <h1>Leaderboard</h1>
+            <p class="subtitle">Top performers ranked by exam scores</p>
+            
+            <!-- View Report Button (only for linked players) -->
+            <div id="viewReportSection" style="display: none; text-align: left; margin-top: 15px;">
+                <button class="btn btn-info" id="viewReportBtn">View My Report</button>
+            </div>
+            
+            <!-- Setup Guide -->
+            <div class="setup-guide" id="setupGuide" style="display: none;">
+                <h4>Google Sign-In Setup Required</h4>
+                <p>To enable Google Sign-In, please follow these steps:</p>
+                <ol>
+                    <li>Go to <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a></li>
+                    <li>Select your project "leaderboard-f6f56"</li>
+                    <li>Go to Authentication → Sign-in method</li>
+                    <li>Enable "Google" provider</li>
+                    <li>Add your domain to authorized domains</li>
+                    <li>Save changes and refresh this page</li>
+                </ol>
+            </div>
+        </header>
+        
+        <div class="controls">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search players...">
+            </div>
+        </div>
+        
+        <div class="leaderboard">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Level</th>
+                        <th>Name</th>
+                        <th>Score</th>
+                        <th>Progress</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    <tr>
+                        <td colspan="5" class="loading">Loading leaderboard data...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Enter World Button -->
+        <div style="text-align: center; padding: 20px;">
+            <button class="enter-world-btn" id="enterWorldBtn">Enter World</button>
+            <div id="enterWorldMessage" style="margin-top: 10px; color: #dc3545; font-weight: 500;"></div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>Leaderboard &copy; 2023 | Updated in real-time</p>
+        <a class="change-btn" id="changeLink">Change</a>
+    </footer>
+
+    <!-- Game Container -->
+    <div class="game-container" id="gameContainer">
+        <div class="game-ui">
+            <div class="game-stats">
+                <div class="stat">
+                    <div class="stat-label">Score</div>
+                    <div class="stat-value" id="gameScore">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Level</div>
+                    <div class="stat-value" id="gameLevel">1</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Health</div>
+                    <div class="health-bar-container">
+                        <div class="health-bar" id="healthBar" style="width: 100%"></div>
+                    </div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Damage</div>
+                    <div class="stat-value" id="gameDamage">10</div>
+                </div>
+            </div>
+            <div class="game-controls">
+                <button class="game-btn exit-game-btn" id="exitGameBtn">Exit World</button>
+            </div>
+        </div>
+
+        <canvas class="game-canvas" id="gameCanvas" width="800" height="600"></canvas>
+
+        <!-- Mobile Controls -->
+        <div class="mobile-controls" id="mobileControls">
+            <div class="mobile-joystick" id="joystick">
+                <div class="joystick-handle" id="joystickHandle"></div>
+            </div>
+            <div class="mobile-action-buttons">
+                <div class="mobile-action-btn" id="attackBtn">⚔️</div>
+            </div>
+        </div>
+
+        <div class="controls-info">
+            <h3>Controls</h3>
+            <ul class="controls-list">
+                <li><span class="key">WASD</span> Move character</li>
+                <li><span class="key">SPACE</span> Attack</li>
+                <li><span class="key">ESC</span> Pause/Exit</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Leaderboard</h2>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="password-section">
+                    <h3>Authentication Required</h3>
+                    <div class="form-group">
+                        <label for="passwordInput">Enter Password to Edit</label>
+                        <input type="password" id="passwordInput" placeholder="Enter password">
+                        <div class="error-message" id="passwordError">Incorrect password. Please try again.</div>
+                    </div>
+                    <button class="btn btn-primary" id="verifyPasswordBtn">Verify Password</button>
+                </div>
+                
+                <div class="edit-section" id="editSection">
+                    <div id="statusMessage"></div>
+                    
+                    <!-- Already Bound Section -->
+                    <div class="already-bound-section" id="alreadyBoundSection" style="display: none;">
+                        <h3>Account Already Bound</h3>
+                        <p>Your Google account is already bound to: <strong id="boundPlayerName"></strong></p>
+                        <p>Each Google account can only be bound to one player.</p>
+                    </div>
+                    
+                    <!-- Bind Account Section -->
+                    <div class="bind-section" id="bindSection" style="display: none;">
+                        <h3>Bind Google Account</h3>
+                        <p>You are signed in as: <strong id="currentUserEmail"></strong></p>
+                        <div class="form-group">
+                            <label for="playerToBind">Select Player to Bind</label>
+                            <select id="playerToBind" class="form-group">
+                                <option value="">Select a player...</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success" id="bindAccountBtn">Bind Account to Player</button>
+                        <hr style="margin: 20px 0;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newPlayerName">Add New Player</label>
+                        <input type="text" id="newPlayerName" placeholder="Enter player name">
+                    </div>
+                    <div class="form-group">
+                        <label for="newPlayerScore">Score</label>
+                        <input type="number" id="newPlayerScore" placeholder="Enter score" min="0" max="100000">
+                    </div>
+                    <button class="btn btn-primary" id="addPlayerBtn">Add Player</button>
+                    
+                    <!-- Add Exam Button -->
+                    <div style="margin: 25px 0 15px;">
+                        <button class="btn btn-info" id="addExamBtn">Add Exam Scores</button>
+                    </div>
+                    
+                    <!-- Exam Section -->
+                    <div id="examSection" style="display: none;">
+                        <h3>Exam Scores</h3>
+                        <div class="exam-table-container">
+                            <table class="exam-table" id="examTable">
+                                <thead>
+                                    <tr>
+                                        <th>Player</th>
+                                        <th>Maths</th>
+                                        <th>Physics</th>
+                                        <th>Chemistry</th>
+                                        <th>Biology</th>
+                                        <th>English</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="examTableBody">
+                                    <!-- Exam data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="form-actions">
+                            <button class="btn btn-success" id="saveExamScoresBtn">Save Exam Scores</button>
+                        </div>
+                    </div>
+                    
+                    <h3 style="margin: 25px 0 15px;">Current Players</h3>
+                    <div class="player-list" id="playerList">
+                        <div class="loading">Loading players...</div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                        <button class="btn btn-success" id="saveBtn">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div class="modal" id="reportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Academic Performance Report</h2>
+                <button class="close-btn" id="closeReportModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="report-header">
+                    <h3 id="reportPlayerName">Student Report</h3>
+                    <p>Academic strengths and weaknesses analysis</p>
+                </div>
+                <div class="radar-chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <div class="report-stats" id="reportStats">
+                    <!-- Stats will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Password for authentication - UPDATED
+        const correctPassword = "67a=72b*3x^2/areug45uay";
+
+        // DOM elements
+        const leaderboardBody = document.getElementById('leaderboardBody');
+        const searchInput = document.getElementById('searchInput');
+        const changeLink = document.getElementById('changeLink');
+        const editModal = document.getElementById('editModal');
+        const closeModal = document.getElementById('closeModal');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const playerList = document.getElementById('playerList');
+        const addPlayerBtn = document.getElementById('addPlayerBtn');
+        const newPlayerName = document.getElementById('newPlayerName');
+        const newPlayerScore = document.getElementById('newPlayerScore');
+        const passwordInput = document.getElementById('passwordInput');
+        const verifyPasswordBtn = document.getElementById('verifyPasswordBtn');
+        const passwordError = document.getElementById('passwordError');
+        const editSection = document.getElementById('editSection');
+        const statusMessage = document.getElementById('statusMessage');
+        const authSection = document.getElementById('authSection');
+        const setupGuide = document.getElementById('setupGuide');
+        const bindSection = document.getElementById('bindSection');
+        const alreadyBoundSection = document.getElementById('alreadyBoundSection');
+        const currentUserEmail = document.getElementById('currentUserEmail');
+        const playerToBind = document.getElementById('playerToBind');
+        const bindAccountBtn = document.getElementById('bindAccountBtn');
+        const boundPlayerName = document.getElementById('boundPlayerName');
+        const enterWorldBtn = document.getElementById('enterWorldBtn');
+        const enterWorldMessage = document.getElementById('enterWorldMessage');
+        const gameContainer = document.getElementById('gameContainer');
+        const gameScore = document.getElementById('gameScore');
+        const gameLevel = document.getElementById('gameLevel');
+        const healthBar = document.getElementById('healthBar');
+        const gameDamage = document.getElementById('gameDamage');
+        const exitGameBtn = document.getElementById('exitGameBtn');
+        const gameCanvas = document.getElementById('gameCanvas');
+        const ctx = gameCanvas.getContext('2d');
+        const viewReportSection = document.getElementById('viewReportSection');
+        const viewReportBtn = document.getElementById('viewReportBtn');
+        const reportModal = document.getElementById('reportModal');
+        const closeReportModal = document.getElementById('closeReportModal');
+        const radarChartCanvas = document.getElementById('radarChart');
+        const reportPlayerName = document.getElementById('reportPlayerName');
+        const reportStats = document.getElementById('reportStats');
+        const addExamBtn = document.getElementById('addExamBtn');
+        const examSection = document.getElementById('examSection');
+        const examTableBody = document.getElementById('examTableBody');
+        const saveExamScoresBtn = document.getElementById('saveExamScoresBtn');
+        const mobileControls = document.getElementById('mobileControls');
+        const joystick = document.getElementById('joystick');
+        const joystickHandle = document.getElementById('joystickHandle');
+        const attackBtn = document.getElementById('attackBtn');
+
+        // Track authentication state
+        let isAuthenticated = false;
+        let currentUser = null;
+        let currentLeaderboardData = [];
+        let userBoundPlayer = null;
+        let isMobileDevice = false;
+        let radarChart = null;
+        
+        // Game state
+        let gameState = {
+            score: 0,
+            level: 1,
+            health: 100,
+            maxHealth: 100,
+            damage: 10,
+            isPlaying: false,
+            player: {
+                x: 400,
+                y: 300,
+                size: 20,
+                speed: 5,
+                color: '#4cd137',
+                lastAttack: 0,
+                attackCooldown: 500, // ms
+                direction: 'down', // 'up', 'down', 'left', 'right'
+                isMoving: false,
+                animationFrame: 0,
+                lastAnimationUpdate: 0,
+                attackRange: 100
+            },
+            enemies: [],
+            swordSwings: [],
+            keys: {},
+            lastTime: 0,
+            camera: {
+                x: 0,
+                y: 0
+            },
+            // Mobile controls state
+            mobileInput: {
+                joystickActive: false,
+                joystickX: 0,
+                joystickY: 0,
+                attackPressed: false
+            }
+        };
+        
+        // Image assets
+        const images = {
+            // Player animations
+            playerIdle: [],
+            playerWalkUp: [],
+            playerWalkDown: [],
+            // Enemy
+            enemy: null,
+            enemyHit: null,
+            // Powered Enemy
+            poweredEnemy: null,
+            poweredEnemyHit1: null,
+            poweredEnemyHit2: null,
+            // Ground tile
+            groundTile: null,
+            // Sword swing effect
+            swordSwing: []
+        };
+        
+        // Create a colored rectangle as a fallback image
+        function createFallbackImage(width, height, color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, width, height);
+            return canvas;
+        }
+        
+        // Load all images
+        function loadImages() {
+            return new Promise((resolve) => {
+                let imagesToLoad = 0;
+                let imagesLoaded = 0;
+                
+                // Function to track loading progress
+                function imageLoaded() {
+                    imagesLoaded++;
+                    if (imagesLoaded === imagesToLoad) {
+                        console.log('All images loaded successfully');
+                        resolve();
+                    }
+                }
+                
+                // Load player idle frames (1-12)
+                for (let i = 1; i <= 12; i++) {
+                    imagesToLoad++;
+                    const img = new Image();
+                    img.onload = imageLoaded;
+                    img.onerror = () => {
+                        console.warn(`Failed to load player_idle${i}.png, using fallback`);
+                        // Create a colored rectangle as fallback
+                        const fallback = createFallbackImage(64, 64, '#4cd137');
+                        images.playerIdle.push(fallback);
+                        imageLoaded();
+                    };
+                    // REPLACE WITH YOUR OWN IMAGE PATHS
+                    img.src = `images/player_idle${i}.png`;
+                    images.playerIdle.push(img);
+                }
+                
+                // Load player walk up frames (1-2)
+                for (let i = 1; i <= 2; i++) {
+                    imagesToLoad++;
+                    const img = new Image();
+                    img.onload = imageLoaded;
+                    img.onerror = () => {
+                        console.warn(`Failed to load player_walk_up_frame${i}.png, using fallback`);
+                        const fallback = createFallbackImage(64, 64, '#3498db');
+                        images.playerWalkUp.push(fallback);
+                        imageLoaded();
+                    };
+                    // REPLACE WITH YOUR OWN IMAGE PATHS
+                    img.src = `images/player_walk_up_frame${i}.png`;
+                    images.playerWalkUp.push(img);
+                }
+                
+                // Load player walk down frames (1-2)
+                for (let i = 1; i <= 2; i++) {
+                    imagesToLoad++;
+                    const img = new Image();
+                    img.onload = imageLoaded;
+                    img.onerror = () => {
+                        console.warn(`Failed to load player_walk_down_frame${i}.png, using fallback`);
+                        const fallback = createFallbackImage(64, 64, '#2ecc71');
+                        images.playerWalkDown.push(fallback);
+                        imageLoaded();
+                    };
+                    // REPLACE WITH YOUR OWN IMAGE PATHS
+                    img.src = `images/player_walk_down_frame${i}.png`;
+                    images.playerWalkDown.push(img);
+                }
+                
+                // Load regular enemy image
+                imagesToLoad++;
+                images.enemy = new Image();
+                images.enemy.onload = imageLoaded;
+                images.enemy.onerror = () => {
+                    console.warn('Failed to load enemy.png, using fallback');
+                    images.enemy = createFallbackImage(64, 64, '#e74c3c');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.enemy.src = 'images/enemy.png';
+                
+                // Load regular enemy hit image
+                imagesToLoad++;
+                images.enemyHit = new Image();
+                images.enemyHit.onload = imageLoaded;
+                images.enemyHit.onerror = () => {
+                    console.warn('Failed to load enemy_hit.png, using fallback');
+                    images.enemyHit = createFallbackImage(64, 64, '#ff6b6b');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.enemyHit.src = 'images/enemy_hit.png';
+                
+                // Load powered enemy image
+                imagesToLoad++;
+                images.poweredEnemy = new Image();
+                images.poweredEnemy.onload = imageLoaded;
+                images.poweredEnemy.onerror = () => {
+                    console.warn('Failed to load powered_enemy.png, using fallback');
+                    images.poweredEnemy = createFallbackImage(64, 64, '#9b59b6');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.poweredEnemy.src = 'images/powered_enemy.png';
+                
+                // Load powered enemy hit1 image
+                imagesToLoad++;
+                images.poweredEnemyHit1 = new Image();
+                images.poweredEnemyHit1.onload = imageLoaded;
+                images.poweredEnemyHit1.onerror = () => {
+                    console.warn('Failed to load powered_enemy_hit1.png, using fallback');
+                    images.poweredEnemyHit1 = createFallbackImage(64, 64, '#8e44ad');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.poweredEnemyHit1.src = 'images/powered_enemy_hit1.png';
+                
+                // Load powered enemy hit2 image
+                imagesToLoad++;
+                images.poweredEnemyHit2 = new Image();
+                images.poweredEnemyHit2.onload = imageLoaded;
+                images.poweredEnemyHit2.onerror = () => {
+                    console.warn('Failed to load powered_enemy_hit2.png, using fallback');
+                    images.poweredEnemyHit2 = createFallbackImage(64, 64, '#7d3c98');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.poweredEnemyHit2.src = 'images/powered_enemy_hit2.png';
+                
+                // Load ground tile
+                imagesToLoad++;
+                images.groundTile = new Image();
+                images.groundTile.onload = imageLoaded;
+                images.groundTile.onerror = () => {
+                    console.warn('Failed to load tile.png, using fallback');
+                    images.groundTile = createFallbackImage(64, 64, '#34495e');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.groundTile.src = 'images/tile.png';
+                
+                // Load sword swing frames (1-3) - UPDATED: Now 128x128
+                for (let i = 1; i <= 3; i++) {
+                    imagesToLoad++;
+                    const img = new Image();
+                    img.onload = imageLoaded;
+                    img.onerror = () => {
+                        console.warn(`Failed to load swing_effect_frame${i}.png, using fallback`);
+                        const fallback = createFallbackImage(128, 128, '#f1c40f');
+                        images.swordSwing.push(fallback);
+                        imageLoaded();
+                    };
+                    // REPLACE WITH YOUR OWN IMAGE PATHS
+                    img.src = `images/swing_effect_frame${i}.png`;
+                    images.swordSwing.push(img);
+                }
+                
+                // If no images to load, resolve immediately
+                if (imagesToLoad === 0) resolve();
+            });
+        }
+
+        // Level progression system
+        function calculateLevelAndProgress(score) {
+            let level = 1;
+            let progress = 0;
+            let baseScore = 100; // Base score needed for level 1
+            
+            // Calculate level based on score
+            while (score >= baseScore) {
+                score -= baseScore;
+                level++;
+                baseScore *= 1.25; // Each level requires 1.25x more score
+            }
+            
+            // Calculate progress percentage for current level
+            progress = Math.min(100, Math.round((score / baseScore) * 100));
+            
+            return { level, progress, scoreToNextLevel: baseScore - score };
+        }
+
+        // Show status message
+        function showStatus(message, isSuccess = true) {
+            statusMessage.innerHTML = `<div class="status-message ${isSuccess ? 'status-success' : 'status-error'}">${message}</div>`;
+            setTimeout(() => {
+                statusMessage.innerHTML = '';
+            }, 3000);
+        }
+
+        // Show setup guide
+        function showSetupGuide() {
+            setupGuide.style.display = 'block';
+        }
+
+        // Check if user already has a bound player
+        async function checkUserBoundPlayer() {
+            if (!currentUser) return null;
+            
+            try {
+                // Query players collection for any player bound to this user
+                const q = window.firebaseQuery(
+                    window.firebaseCollection(db, 'players'),
+                    window.firebaseWhere('googleAccount.uid', '==', currentUser.uid)
+                );
+                
+                const querySnapshot = await window.firebaseGetDocs(q);
+                
+                if (!querySnapshot.empty) {
+                    const doc = querySnapshot.docs[0];
+                    return {
+                        id: doc.id,
+                        ...doc.data()
+                    };
+                }
+                return null;
+            } catch (error) {
+                console.error('Error checking bound player:', error);
+                return null;
+            }
+        }
+
+        // Update Enter World button state based on account binding
+        function updateEnterWorldButton() {
+            if (userBoundPlayer) {
+                enterWorldBtn.disabled = false;
+                enterWorldMessage.textContent = "";
+                viewReportSection.style.display = 'block';
+            } else {
+                enterWorldBtn.disabled = true;
+                enterWorldMessage.textContent = "You need to link your account to a player to enter the world";
+                viewReportSection.style.display = 'none';
+            }
+        }
+
+        // Render authentication UI
+        async function renderAuthUI(user) {
+            currentUser = user;
+            userBoundPlayer = await checkUserBoundPlayer();
+            
+            if (user) {
+                // User is signed in
+                if (userBoundPlayer) {
+                    // User already has a bound player
+                    authSection.innerHTML = `
+                        <div class="user-info">
+                            <img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar">
+                            <span>Hello, ${user.displayName}</span>
+                            <button class="already-bound">Bound to ${userBoundPlayer.name}</button>
+                            <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+                        </div>
+                    `;
+                } else {
+                    // User doesn't have a bound player yet
+                    authSection.innerHTML = `
+                        <div class="user-info">
+                            <img src="${user.photoURL}" alt="${user.displayName}" class="user-avatar">
+                            <span>Hello, ${user.displayName}</span>
+                            <button class="bind-account-btn" id="openBindModal">Bind Account</button>
+                            <button class="sign-out-btn" id="signOutBtn">Sign Out</button>
+                        </div>
+                    `;
+                    
+                    // Add event listener for bind modal
+                    document.getElementById('openBindModal').addEventListener('click', openEditModal);
+                }
+                
+                // Add event listener for sign out
+                document.getElementById('signOutBtn').addEventListener('click', handleSignOut);
+                setupGuide.style.display = 'none';
+            } else {
+                // User is signed out
+                authSection.innerHTML = `
+                    <button class="sign-in-btn" id="signInBtn">
+                        <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+                            <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+                            <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+                            <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+                            <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+                        </svg>
+                        Sign in with Google
+                    </button>
+                `;
+                
+                // Add event listener for sign in
+                document.getElementById('signInBtn').addEventListener('click', handleSignIn);
+            }
+            
+            // Update Enter World button state
+            updateEnterWorldButton();
+        }
+
+        // Handle Google Sign-In
+        async function handleSignIn() {
+            try {
+                console.log('Attempting Google Sign-In...');
+                const result = await window.firebaseSignInWithPopup(window.firebaseAuth, window.firebaseProvider);
+                console.log('Signed in successfully:', result.user);
+                showStatus('Signed in successfully!');
+            } catch (error) {
+                console.error('Error signing in:', error);
+                
+                // Show specific error messages
+                let errorMessage = error.message;
+                if (error.code === 'auth/operation-not-allowed') {
+                    errorMessage = 'Google Sign-In is not enabled in your Firebase project. Please enable it in the Firebase Console.';
+                    showSetupGuide();
+                } else if (error.code === 'auth/popup-blocked') {
+                    errorMessage = 'Sign-in popup was blocked by your browser. Please allow popups for this site.';
+                } else if (error.code === 'auth/popup-closed-by-user') {
+                    errorMessage = 'Sign-in was cancelled. Please try again.';
+                }
+                
+                showStatus(errorMessage, false);
+            }
+        }
+
+        // Handle Sign Out
+        async function handleSignOut() {
+            try {
+                await window.firebaseSignOut(window.firebaseAuth);
+                console.log('Signed out successfully');
+                showStatus('Signed out successfully');
+            } catch (error) {
+                console.error('Error signing out:', error);
+                showStatus('Error signing out: ' + error.message, false);
+            }
+        }
+
+        // Bind Google account to player
+        async function bindAccountToPlayer() {
+            if (!currentUser) {
+                showStatus('Please sign in first', false);
+                return;
+            }
+
+            const selectedPlayerId = playerToBind.value;
+            if (!selectedPlayerId) {
+                showStatus('Please select a player to bind', false);
+                return;
+            }
+
+            try {
+                const playerDoc = window.firebaseDoc(db, 'players', selectedPlayerId);
+                
+                // Update the player document with Google account info
+                await window.firebaseUpdateDoc(playerDoc, {
+                    googleAccount: {
+                        uid: currentUser.uid,
+                        email: currentUser.email,
+                        displayName: currentUser.displayName,
+                        photoURL: currentUser.photoURL,
+                        boundAt: new Date()
+                    }
+                });
+
+                showStatus('Google account successfully bound to player!');
+                
+                // Update local state
+                userBoundPlayer = await checkUserBoundPlayer();
+                
+                // Refresh the UI
+                renderAuthUI(currentUser);
+                renderLeaderboard(currentLeaderboardData);
+                
+                // Clear selection and hide bind section
+                playerToBind.value = '';
+                bindSection.style.display = 'none';
+                alreadyBoundSection.style.display = 'block';
+                boundPlayerName.textContent = userBoundPlayer.name;
+                
+            } catch (error) {
+                console.error('Error binding account:', error);
+                showStatus('Error binding account: ' + error.message, false);
+            }
+        }
+
+        // Populate player dropdown for binding
+        function populatePlayerDropdown(players) {
+            playerToBind.innerHTML = '<option value="">Select a player...</option>';
+            
+            players.forEach(player => {
+                // Only show players that don't have a Google account bound yet
+                if (!player.googleAccount) {
+                    const option = document.createElement('option');
+                    option.value = player.id;
+                    option.textContent = player.name;
+                    playerToBind.appendChild(option);
+                }
+            });
+        }
+
+        // Populate exam table
+        function populateExamTable(players) {
+            examTableBody.innerHTML = '';
+            
+            players.forEach(player => {
+                const row = document.createElement('tr');
+                
+                // Get exam scores or default to 0
+                const exams = player.exams || {};
+                const maths = exams.maths || 0;
+                const physics = exams.physics || 0;
+                const chemistry = exams.chemistry || 0;
+                const biology = exams.biology || 0;
+                const english = exams.english || 0;
+                const total = maths + physics + chemistry + biology + english;
+                
+                row.innerHTML = `
+                    <td>${player.name}</td>
+                    <td><input type="number" min="0" max="100" value="${maths}" data-player="${player.id}" data-exam="maths"></td>
+                    <td><input type="number" min="0" max="100" value="${physics}" data-player="${player.id}" data-exam="physics"></td>
+                    <td><input type="number" min="0" max="100" value="${chemistry}" data-player="${player.id}" data-exam="chemistry"></td>
+                    <td><input type="number" min="0" max="100" value="${biology}" data-player="${player.id}" data-exam="biology"></td>
+                    <td><input type="number" min="0" max="100" value="${english}" data-player="${player.id}" data-exam="english"></td>
+                    <td>${total}</td>
+                `;
+                
+                examTableBody.appendChild(row);
+            });
+        }
+
+        // Save exam scores
+        async function saveExamScores() {
+            if (!isAuthenticated) {
+                showStatus('Please authenticate first', false);
+                return;
+            }
+            
+            const inputs = examTableBody.querySelectorAll('input');
+            const updates = [];
+            
+            // Group updates by player
+            const playerUpdates = {};
+            
+            inputs.forEach(input => {
+                const playerId = input.getAttribute('data-player');
+                const exam = input.getAttribute('data-exam');
+                const score = parseInt(input.value) || 0;
+                
+                if (!playerUpdates[playerId]) {
+                    playerUpdates[playerId] = {};
+                }
+                
+                playerUpdates[playerId][exam] = score;
+            });
+            
+            // Prepare update promises
+            for (const playerId in playerUpdates) {
+                const playerDoc = window.firebaseDoc(db, 'players', playerId);
+                updates.push(
+                    window.firebaseUpdateDoc(playerDoc, {
+                        exams: playerUpdates[playerId],
+                        score: Object.values(playerUpdates[playerId]).reduce((sum, score) => sum + score, 0)
+                    })
+                );
+            }
+            
+            try {
+                await Promise.all(updates);
+                showStatus('Exam scores saved successfully!');
+                
+                // Refresh leaderboard data
+                const snapshot = await window.firebaseGetDocs(leaderboardCollection);
+                const leaderboardData = [];
+                snapshot.forEach((doc) => {
+                    leaderboardData.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                currentLeaderboardData = leaderboardData;
+                renderLeaderboard(leaderboardData);
+                
+            } catch (error) {
+                console.error('Error saving exam scores:', error);
+                showStatus('Error saving exam scores: ' + error.message, false);
+            }
+        }
+
+        // Show radar chart report
+        function showReport() {
+            if (!userBoundPlayer) return;
+            
+            const exams = userBoundPlayer.exams || {};
+            const maths = exams.maths || 0;
+            const physics = exams.physics || 0;
+            const chemistry = exams.chemistry || 0;
+            const biology = exams.biology || 0;
+            const english = exams.english || 0;
+            const total = maths + physics + chemistry + biology + english;
+            
+            // Update report header
+            reportPlayerName.textContent = `${userBoundPlayer.name}'s Academic Report`;
+            
+            // Calculate game stats based on exam scores
+            const speed = maths + total / 10;
+            const health = (physics + chemistry + biology) + total / 10;
+            const attack = english + total / 10;
+            
+            // Update stats display
+            reportStats.innerHTML = `
+                <div class="stat-card">
+                    <h4>Maths Score</h4>
+                    <div class="value">${maths}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Sciences Score</h4>
+                    <div class="value">${physics + chemistry + biology}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>English Score</h4>
+                    <div class="value">${english}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Total Score</h4>
+                    <div class="value">${total}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Game Speed</h4>
+                    <div class="value">${speed.toFixed(1)}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Game Health</h4>
+                    <div class="value">${health.toFixed(1)}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Game Attack</h4>
+                    <div class="value">${attack.toFixed(1)}</div>
+                </div>
+            `;
+            
+            // Destroy existing chart if it exists
+            if (radarChart) {
+                radarChart.destroy();
+            }
+            
+            // Create radar chart
+            const ctx = radarChartCanvas.getContext('2d');
+            radarChart = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Maths', 'Physics', 'Chemistry', 'Biology', 'English'],
+                    datasets: [{
+                        label: 'Exam Scores',
+                        data: [maths, physics, chemistry, biology, english],
+                        backgroundColor: 'rgba(74, 100, 145, 0.2)',
+                        borderColor: 'rgba(74, 100, 145, 1)',
+                        pointBackgroundColor: 'rgba(74, 100, 145, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(74, 100, 145, 1)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${context.raw}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Show the modal
+            reportModal.style.display = 'flex';
+        }
+
+        // Detect mobile device
+        function detectMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // Setup mobile controls
+        function setupMobileControls() {
+            if (!isMobileDevice) return;
+            
+            // Joystick touch events
+            let joystickRect = joystick.getBoundingClientRect();
+            let joystickCenterX = joystickRect.width / 2;
+            let joystickCenterY = joystickRect.height / 2;
+            let maxDistance = joystickRect.width / 3;
+            
+            function updateJoystickPosition(clientX, clientY) {
+                const rect = joystick.getBoundingClientRect();
+                const x = clientX - rect.left - joystickCenterX;
+                const y = clientY - rect.top - joystickCenterY;
+                
+                // Calculate distance from center
+                const distance = Math.min(Math.sqrt(x * x + y * y), maxDistance);
+                const angle = Math.atan2(y, x);
+                
+                // Update handle position
+                const handleX = Math.cos(angle) * distance;
+                const handleY = Math.sin(angle) * distance;
+                
+                joystickHandle.style.transform = `translate(${handleX}px, ${handleY}px)`;
+                
+                // Update game state
+                gameState.mobileInput.joystickActive = true;
+                gameState.mobileInput.joystickX = x / maxDistance;
+                gameState.mobileInput.joystickY = y / maxDistance;
+            }
+            
+            function resetJoystick() {
+                joystickHandle.style.transform = 'translate(0, 0)';
+                gameState.mobileInput.joystickActive = false;
+                gameState.mobileInput.joystickX = 0;
+                gameState.mobileInput.joystickY = 0;
+            }
+            
+            // Touch events for joystick
+            joystick.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                updateJoystickPosition(e.touches[0].clientX, e.touches[0].clientY);
+            });
+            
+            joystick.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                updateJoystickPosition(e.touches[0].clientX, e.touches[0].clientY);
+            });
+            
+            joystick.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                resetJoystick();
+            });
+            
+            // Attack button
+            attackBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                gameState.mobileInput.attackPressed = true;
+            });
+            
+            attackBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                gameState.mobileInput.attackPressed = false;
+            });
+        }
+
+        // Game Functions
+        async function startGame() {
+            // Check if user has a bound player
+            if (!userBoundPlayer) {
+                alert("You need to link your account to a player to enter the world");
+                return;
+            }
+            
+            // Set canvas to render crisp images
+            ctx.imageSmoothingEnabled = false;
+            ctx.webkitImageSmoothingEnabled = false;
+            ctx.mozImageSmoothingEnabled = false;
+            ctx.msImageSmoothingEnabled = false;
+            ctx.oImageSmoothingEnabled = false;
+            
+            // Load images first
+            try {
+                console.log("Loading game images...");
+                await loadImages();
+                console.log("Game images loaded successfully");
+            } catch (error) {
+                console.error('Error loading images:', error);
+                // Continue even if images fail to load - we have fallback rendering
+            }
+            
+            // Calculate player stats based on exam scores
+            const exams = userBoundPlayer.exams || {};
+            const maths = exams.maths || 0;
+            const physics = exams.physics || 0;
+            const chemistry = exams.chemistry || 0;
+            const biology = exams.biology || 0;
+            const english = exams.english || 0;
+            const total = maths + physics + chemistry + biology + english;
+            
+            // Calculate game stats based on exam scores
+            const baseSpeed = maths + total / 10;
+            const baseHealth = (physics + chemistry + biology) + total / 10;
+            const baseAttack = english + total / 10;
+            
+            // Calculate player level from leaderboard score
+            const playerLevel = calculateLevelAndProgress(userBoundPlayer.score).level;
+            
+            // Reset game state with player's stats based on their exam scores
+            gameState = {
+                score: 0, // Session score only, doesn't affect leaderboard
+                level: playerLevel, // Fixed level based on leaderboard
+                health: 50 + baseHealth * 2, // Base health scaled by exam scores
+                maxHealth: 50 + baseHealth * 2,
+                damage: 5 + baseAttack, // Base damage scaled by exam scores
+                isPlaying: true,
+                player: {
+                    x: 400,
+                    y: 300,
+                    size: 32, // Adjusted for 64x64 sprite
+                    speed: 3 + baseSpeed / 10, // Base speed scaled by exam scores
+                    color: '#4cd137',
+                    lastAttack: 0,
+                    attackCooldown: 500 - (playerLevel - 1) * 25, // Faster attacks for higher levels (min 200ms)
+                    direction: 'down',
+                    isMoving: false,
+                    animationFrame: 0,
+                    lastAnimationUpdate: 0,
+                    attackRange: 80 + baseAttack * 2 // Attack range scaled by exam scores
+                },
+                enemies: [],
+                swordSwings: [],
+                keys: {},
+                lastTime: performance.now(),
+                camera: {
+                    x: 0,
+                    y: 0
+                },
+                // Mobile controls state
+                mobileInput: {
+                    joystickActive: false,
+                    joystickX: 0,
+                    joystickY: 0,
+                    attackPressed: false
+                }
+            };
+            
+            updateGameUI();
+            gameContainer.style.display = 'flex';
+            
+            // Setup mobile controls if on mobile
+            if (isMobileDevice) {
+                setupMobileControls();
+            }
+            
+            // Start game loop
+            gameState.lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+            
+            // Spawn initial enemies
+            spawnEnemies(3 + Math.floor(playerLevel / 3));
+        }
+
+        function updateGameUI() {
+            gameScore.textContent = gameState.score;
+            gameLevel.textContent = gameState.level;
+            gameDamage.textContent = gameState.damage;
+            healthBar.style.width = `${(gameState.health / gameState.maxHealth) * 100}%`;
+        }
+
+        function gameLoop(currentTime) {
+            if (!gameState.isPlaying) return;
+            
+            const deltaTime = currentTime - gameState.lastTime;
+            gameState.lastTime = currentTime;
+            
+            // Clear canvas
+            ctx.fillStyle = '#162447';
+            ctx.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+            
+            // Update game state
+            updatePlayer(deltaTime, currentTime);
+            updateEnemies(deltaTime, currentTime);
+            updateSwordSwings(deltaTime);
+            
+            // Update camera to follow player
+            updateCamera();
+            
+            // Save the current canvas state
+            ctx.save();
+            
+            // Apply camera transformation
+            ctx.translate(-gameState.camera.x, -gameState.camera.y);
+            
+            // Draw everything with camera offset
+            drawGround();
+            drawPlayer();
+            drawEnemies();
+            drawSwordSwings();
+            
+            // Restore the canvas state
+            ctx.restore();
+            
+            // Continue game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateCamera() {
+            // Center camera on player
+            gameState.camera.x = gameState.player.x - gameCanvas.width / 2;
+            gameState.camera.y = gameState.player.y - gameCanvas.height / 2;
+            
+            // Clamp camera to world bounds (if needed)
+            // For now, we'll allow the camera to move freely
+        }
+
+        function drawGround() {
+            if (!images.groundTile) {
+                // Fallback: draw a simple grid
+                const tileSize = 64;
+                const startX = Math.floor(gameState.camera.x / tileSize) * tileSize;
+                const startY = Math.floor(gameState.camera.y / tileSize) * tileSize;
+                const endX = startX + gameCanvas.width + tileSize;
+                const endY = startY + gameCanvas.height + tileSize;
+                
+                for (let x = startX; x < endX; x += tileSize) {
+                    for (let y = startY; y < endY; y += tileSize) {
+                        ctx.fillStyle = (Math.floor(x / tileSize) + Math.floor(y / tileSize)) % 2 === 0 ? '#2c3e50' : '#34495e';
+                        ctx.fillRect(x, y, tileSize, tileSize);
+                    }
+                }
+            } else {
+                const tileSize = 64;
+                const startX = Math.floor(gameState.camera.x / tileSize) * tileSize;
+                const startY = Math.floor(gameState.camera.y / tileSize) * tileSize;
+                const endX = startX + gameCanvas.width + tileSize;
+                const endY = startY + gameCanvas.height + tileSize;
+                
+                for (let x = startX; x < endX; x += tileSize) {
+                    for (let y = startY; y < endY; y += tileSize) {
+                        ctx.drawImage(images.groundTile, x, y, tileSize, tileSize);
+                    }
+                }
+            }
+        }
+
+        function updatePlayer(deltaTime, currentTime) {
+            // Reset movement state
+            gameState.player.isMoving = false;
+            
+            // Handle movement - keyboard or mobile
+            if (isMobileDevice && gameState.mobileInput.joystickActive) {
+                // Mobile controls
+                const joystickX = gameState.mobileInput.joystickX;
+                const joystickY = gameState.mobileInput.joystickY;
+                
+                // Apply movement based on joystick input
+                if (Math.abs(joystickX) > 0.2 || Math.abs(joystickY) > 0.2) {
+                    gameState.player.x += joystickX * gameState.player.speed;
+                    gameState.player.y += joystickY * gameState.player.speed;
+                    gameState.player.isMoving = true;
+                    
+                    // Update direction based on joystick
+                    if (Math.abs(joystickX) > Math.abs(joystickY)) {
+                        gameState.player.direction = joystickX > 0 ? 'right' : 'left';
+                    } else {
+                        gameState.player.direction = joystickY > 0 ? 'down' : 'up';
+                    }
+                }
+                
+                // Handle mobile attack
+                if (gameState.mobileInput.attackPressed && currentTime - gameState.player.lastAttack > gameState.player.attackCooldown) {
+                    attack();
+                    gameState.player.lastAttack = currentTime;
+                }
+            } else {
+                // Keyboard controls
+                if (gameState.keys['KeyW'] || gameState.keys['ArrowUp']) {
+                    gameState.player.y -= gameState.player.speed;
+                    gameState.player.direction = 'up';
+                    gameState.player.isMoving = true;
+                }
+                if (gameState.keys['KeyS'] || gameState.keys['ArrowDown']) {
+                    gameState.player.y += gameState.player.speed;
+                    gameState.player.direction = 'down';
+                    gameState.player.isMoving = true;
+                }
+                if (gameState.keys['KeyA'] || gameState.keys['ArrowLeft']) {
+                    gameState.player.x -= gameState.player.speed;
+                    gameState.player.direction = 'left';
+                    gameState.player.isMoving = true;
+                }
+                if (gameState.keys['KeyD'] || gameState.keys['ArrowRight']) {
+                    gameState.player.x += gameState.player.speed;
+                    gameState.player.direction = 'right';
+                    gameState.player.isMoving = true;
+                }
+                
+                // Attack with spacebar
+                if (gameState.keys['Space'] && currentTime - gameState.player.lastAttack > gameState.player.attackCooldown) {
+                    attack();
+                    gameState.player.lastAttack = currentTime;
+                }
+            }
+            
+            // Update player animation
+            if (currentTime - gameState.player.lastAnimationUpdate > 100) { // 100ms per frame
+                gameState.player.lastAnimationUpdate = currentTime;
+                if (gameState.player.isMoving) {
+                    gameState.player.animationFrame = (gameState.player.animationFrame + 1) % 2; // 2 frames for walking
+                } else {
+                    gameState.player.animationFrame = (gameState.player.animationFrame + 1) % 12; // 12 frames for idle
+                }
+            }
+        }
+
+        function attack() {
+            // Create a sword swing effect with proper positioning based on direction
+            let offsetX = 0;
+            let offsetY = 0;
+            
+            // Position the swing effect in front of the player based on direction
+            switch (gameState.player.direction) {
+                case 'up':
+                    offsetY = -40;
+                    break;
+                case 'down':
+                    offsetY = 40;
+                    break;
+                case 'left':
+                    offsetX = -40;
+                    break;
+                case 'right':
+                    offsetX = 40;
+                    break;
+            }
+            
+            gameState.swordSwings.push({
+                x: gameState.player.x + offsetX,
+                y: gameState.player.y + offsetY,
+                direction: gameState.player.direction,
+                frame: 0,
+                lifetime: 300, // ms
+                damage: gameState.damage,
+                radius: gameState.player.attackRange // Use the player's attack range
+            });
+        }
+
+        function updateEnemies(deltaTime, currentTime) {
+            // Move enemies toward player
+            gameState.enemies.forEach(enemy => {
+                const dx = gameState.player.x - enemy.x;
+                const dy = gameState.player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {
+                    enemy.x += (dx / distance) * enemy.speed;
+                    enemy.y += (dy / distance) * enemy.speed;
+                }
+                
+                // Check collision with player (with attack cooldown)
+                if (distance < gameState.player.size + enemy.size && 
+                    currentTime - enemy.lastAttack > enemy.attackCooldown) {
+                    gameState.health -= enemy.damage;
+                    enemy.lastAttack = currentTime;
+                    updateGameUI(); // Update health bar when taking damage
+                    
+                    if (gameState.health <= 0) {
+                        gameOver();
+                    }
+                }
+                
+                // Check collision with sword swings
+                gameState.swordSwings.forEach(swing => {
+                    const swingDx = swing.x - enemy.x;
+                    const swingDy = swing.y - enemy.y;
+                    const swingDistance = Math.sqrt(swingDx * swingDx + swingDy * swingDy);
+                    
+                    // Use the swing's radius (player's attack range) for collision detection
+                    if (swingDistance < swing.radius + enemy.size) {
+                        enemy.health -= swing.damage;
+                        
+                        if (enemy.health <= 0) {
+                            // Add to session score only, doesn't affect leaderboard
+                            gameState.score += enemy.type === 'powered' ? 50 : 10 * gameState.level;
+                            updateGameUI();
+                        }
+                    }
+                });
+            });
+            
+            // Remove dead enemies and spawn new ones
+            gameState.enemies = gameState.enemies.filter(enemy => enemy.health > 0);
+            
+            if (gameState.enemies.length < 3 + Math.floor(gameState.level / 2)) {
+                spawnEnemies(1);
+            }
+        }
+
+        function updateSwordSwings(deltaTime) {
+            // Update sword swing animations
+            gameState.swordSwings.forEach(swing => {
+                swing.lifetime -= deltaTime;
+                swing.frame = Math.min(2, Math.floor((300 - swing.lifetime) / 100)); // 3 frames over 300ms
+            });
+            
+            // Remove expired sword swings
+            gameState.swordSwings = gameState.swordSwings.filter(swing => swing.lifetime > 0);
+        }
+
+        function spawnEnemies(count) {
+            for (let i = 0; i < count; i++) {
+                // Spawn enemy at random position around player
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 400 + Math.random() * 200;
+                
+                const x = gameState.player.x + Math.cos(angle) * distance;
+                const y = gameState.player.y + Math.sin(angle) * distance;
+                
+                // Enemy level scales with player level
+                const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
+                
+                // Determine enemy type (regular or powered)
+                const isPowered = Math.random() < 0.2 + (gameState.level * 0.02); // More likely at higher levels
+                
+                if (isPowered) {
+                    // Powered enemy - much stronger
+                    gameState.enemies.push({
+                        x: x,
+                        y: y,
+                        size: 40, // Larger than regular enemies
+                        speed: 1.5 + Math.random() * 1.0,
+                        health: 100 + enemyLevel * 25, // Much more health
+                        maxHealth: 100 + enemyLevel * 25,
+                        damage: 15 + enemyLevel * 3, // More damage
+                        level: enemyLevel,
+                        type: 'powered',
+                        lastAttack: 0,
+                        attackCooldown: 1500 // Slower attacks but more damaging
+                    });
+                } else {
+                    // Regular enemy
+                    gameState.enemies.push({
+                        x: x,
+                        y: y,
+                        size: 32,
+                        speed: 1 + Math.random() * 1.5,
+                        health: 50 + enemyLevel * 15, // Increased health
+                        maxHealth: 50 + enemyLevel * 15,
+                        damage: 5 + enemyLevel * 1.5,
+                        level: enemyLevel,
+                        type: 'regular',
+                        lastAttack: 0,
+                        attackCooldown: 1000 // 1 second cooldown
+                    });
+                }
+            }
+        }
+
+        function drawPlayer() {
+            let img;
+            const size = 64; // 64x64 sprite
+            
+            if (gameState.player.isMoving) {
+                if (gameState.player.direction === 'up') {
+                    img = images.playerWalkUp[gameState.player.animationFrame];
+                } else if (gameState.player.direction === 'down') {
+                    img = images.playerWalkDown[gameState.player.animationFrame];
+                } else {
+                    // For left/right, use down animation for now (you can add left/right animations later)
+                    img = images.playerWalkDown[gameState.player.animationFrame];
+                }
+            } else {
+                img = images.playerIdle[gameState.player.animationFrame];
+            }
+            
+            if (img && img.complete && img.naturalWidth !== 0) {
+                ctx.drawImage(img, gameState.player.x - size/2, gameState.player.y - size/2, size, size);
+            } else {
+                // Fallback to circle if image not loaded
+                ctx.fillStyle = gameState.player.color;
+                ctx.beginPath();
+                ctx.arc(gameState.player.x, gameState.player.y, gameState.player.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw a simple sword indicator
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.moveTo(gameState.player.x, gameState.player.y);
                 
@@ -1910,7 +4363,6 @@
             }
         }
 
-        // UPDATED: Enhanced enemy drawing with different images based on health and type
         function drawEnemies() {
             const size = 64; // 64x64 sprite
             
@@ -2146,7 +4598,8 @@
                         id: doc.id,
                         name: data.name,
                         score: data.score,
-                        googleAccount: data.googleAccount || null
+                        googleAccount: data.googleAccount || null,
+                        exams: data.exams || null
                     });
                 });
                 
@@ -2163,6 +4616,11 @@
                     renderPlayerList(leaderboardData);
                     if (!userBoundPlayer) {
                         populatePlayerDropdown(leaderboardData);
+                    }
+                    
+                    // Update exam table if it's visible
+                    if (examSection.style.display === 'block') {
+                        populateExamTable(leaderboardData);
                     }
                 }
             }, (error) => {
@@ -2378,6 +4836,7 @@
             passwordInput.value = '';
             passwordError.style.display = 'none';
             editSection.style.display = 'none';
+            examSection.style.display = 'none';
             
             editModal.style.display = 'flex';
             passwordInput.focus();
@@ -2529,6 +4988,22 @@
             enterWorldBtn.addEventListener('click', startGame);
             exitGameBtn.addEventListener('click', exitGame);
             
+            // Report functionality
+            viewReportBtn.addEventListener('click', showReport);
+            closeReportModal.addEventListener('click', () => {
+                reportModal.style.display = 'none';
+            });
+            
+            // Exam functionality
+            addExamBtn.addEventListener('click', () => {
+                examSection.style.display = examSection.style.display === 'block' ? 'none' : 'block';
+                if (examSection.style.display === 'block') {
+                    populateExamTable(currentLeaderboardData);
+                }
+            });
+            
+            saveExamScoresBtn.addEventListener('click', saveExamScores);
+            
             // Keyboard controls
             document.addEventListener('keydown', handleKeyDown);
             document.addEventListener('keyup', handleKeyUp);
@@ -2545,11 +5020,21 @@
                 if (e.target === editModal) {
                     closeEditModal();
                 }
+                if (e.target === reportModal) {
+                    reportModal.style.display = 'none';
+                }
             });
         }
 
         // Initialize the leaderboard when the page loads
-        document.addEventListener('DOMContentLoaded', initLeaderboard);
+        document.addEventListener('DOMContentLoaded', () => {
+            // Detect if user is on a mobile device
+            isMobileDevice = detectMobile();
+            console.log('Mobile device detected:', isMobileDevice);
+            
+            // Initialize the leaderboard
+            initLeaderboard();
+        });
     </script>
 </body>
 </html>
