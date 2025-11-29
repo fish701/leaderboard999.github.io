@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaderboard</title>
+    <title>Interactive Leaderboard with Animated Game</title>
     
     <!-- Firebase SDK -->
     <script type="module">
@@ -1360,7 +1360,9 @@
                 joystickX: 0,
                 joystickY: 0,
                 attackPressed: false
-            }
+            },
+            // NEW: Health bags array
+            healthBags: []
         };
         
         // Image assets
@@ -1379,7 +1381,9 @@
             // Ground tile
             groundTile: null,
             // Sword swing effect
-            swordSwing: []
+            swordSwing: [],
+            // NEW: Health bag
+            healthBag: null
         };
         
         // Create a colored rectangle as a fallback image
@@ -1544,6 +1548,18 @@
                     img.src = `images/swing_effect_frame${i}.png`;
                     images.swordSwing.push(img);
                 }
+                
+                // NEW: Load health bag image
+                imagesToLoad++;
+                images.healthBag = new Image();
+                images.healthBag.onload = imageLoaded;
+                images.healthBag.onerror = () => {
+                    console.warn('Failed to load health_bag.png, using fallback');
+                    images.healthBag = createFallbackImage(32, 32, '#00ff00');
+                    imageLoaded();
+                };
+                // REPLACE WITH YOUR OWN IMAGE PATHS
+                images.healthBag.src = 'images/health_bag.png';
                 
                 // If no images to load, resolve immediately
                 if (imagesToLoad === 0) resolve();
@@ -2119,7 +2135,9 @@
                     joystickX: 0,
                     joystickY: 0,
                     attackPressed: false
-                }
+                },
+                // NEW: Health bags array
+                healthBags: []
             };
             
             updateGameUI();
@@ -2189,6 +2207,9 @@
             updateEnemies(deltaTime, currentTime);
             updateSwordSwings(deltaTime);
             
+            // NEW: Update health bags
+            updateHealthBags(deltaTime);
+            
             // Update camera to follow player
             updateCamera();
             
@@ -2203,6 +2224,9 @@
             drawPlayer();
             drawEnemies();
             drawSwordSwings();
+            
+            // NEW: Draw health bags
+            drawHealthBags();
             
             // Restore the canvas state
             ctx.restore();
@@ -2402,6 +2426,17 @@
                             // Add to session score only, doesn't affect leaderboard
                             gameState.score += enemy.type === 'powered' ? 50 : 10 * gameState.level;
                             updateGameUI();
+                            
+                            // NEW: Check if powered enemy drops health bag (1/4 chance)
+                            if (enemy.type === 'powered' && Math.random() < 0.25) {
+                                gameState.healthBags.push({
+                                    x: enemy.x,
+                                    y: enemy.y,
+                                    size: 20,
+                                    healAmount: 30,
+                                    lifetime: 10000 // 10 seconds
+                                });
+                            }
                         }
                     }
                 });
@@ -2409,6 +2444,35 @@
             
             // Remove dead enemies
             gameState.enemies = gameState.enemies.filter(enemy => enemy.health > 0);
+        }
+
+        // NEW: Update health bags
+        function updateHealthBags(deltaTime) {
+            // Update health bag lifetimes
+            for (let i = gameState.healthBags.length - 1; i >= 0; i--) {
+                const bag = gameState.healthBags[i];
+                bag.lifetime -= deltaTime;
+                
+                // Remove expired health bags
+                if (bag.lifetime <= 0) {
+                    gameState.healthBags.splice(i, 1);
+                    continue;
+                }
+                
+                // Check collision with player
+                const dx = gameState.player.x - bag.x;
+                const dy = gameState.player.y - bag.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < gameState.player.size + bag.size) {
+                    // Heal player
+                    gameState.health = Math.min(gameState.maxHealth, gameState.health + bag.healAmount);
+                    updateGameUI();
+                    
+                    // Remove health bag
+                    gameState.healthBags.splice(i, 1);
+                }
+            }
         }
 
         function updateSwordSwings(deltaTime) {
@@ -2422,14 +2486,38 @@
             gameState.swordSwings = gameState.swordSwings.filter(swing => swing.lifetime > 0);
         }
 
+        // MODIFIED: Spawn enemies with collision detection to prevent overlapping
         function spawnEnemies(count) {
             for (let i = 0; i < count; i++) {
-                // Spawn enemy at random position around player
-                const angle = Math.random() * Math.PI * 2;
-                const distance = 400 + Math.random() * 200;
+                let attempts = 0;
+                let validPosition = false;
+                let x, y;
                 
-                const x = gameState.player.x + Math.cos(angle) * distance;
-                const y = gameState.player.y + Math.sin(angle) * distance;
+                // Try to find a valid position without overlapping
+                while (!validPosition && attempts < 20) {
+                    // Spawn enemy at random position around player
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 400 + Math.random() * 200;
+                    
+                    x = gameState.player.x + Math.cos(angle) * distance;
+                    y = gameState.player.y + Math.sin(angle) * distance;
+                    
+                    // Check if this position overlaps with existing enemies
+                    validPosition = true;
+                    for (const enemy of gameState.enemies) {
+                        const dx = x - enemy.x;
+                        const dy = y - enemy.y;
+                        const distanceToEnemy = Math.sqrt(dx * dx + dy * dy);
+                        
+                        // Minimum distance between enemies (sum of their radii + padding)
+                        if (distanceToEnemy < 80) { // 40 (enemy size) + 40 (padding)
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    
+                    attempts++;
+                }
                 
                 // Enemy level scales with player level and survival time
                 const timeFactor = Math.floor(gameState.survivalTime / 60000); // Stronger enemies every minute
@@ -2591,6 +2679,28 @@
                 }
                 
                 ctx.fillText(enemyText, enemy.x, enemy.y + enemy.size + 15);
+            });
+        }
+
+        // NEW: Draw health bags
+        function drawHealthBags() {
+            gameState.healthBags.forEach(bag => {
+                if (images.healthBag && images.healthBag.complete && images.healthBag.naturalWidth !== 0) {
+                    ctx.drawImage(images.healthBag, bag.x - bag.size, bag.y - bag.size, bag.size * 2, bag.size * 2);
+                } else {
+                    // Fallback: green cross
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(bag.x - bag.size/2, bag.y - bag.size/2, bag.size, bag.size);
+                    
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(bag.x - bag.size/2, bag.y);
+                    ctx.lineTo(bag.x + bag.size/2, bag.y);
+                    ctx.moveTo(bag.x, bag.y - bag.size/2);
+                    ctx.lineTo(bag.x, bag.y + bag.size/2);
+                    ctx.stroke();
+                }
             });
         }
 
@@ -3226,4 +3336,3 @@
     </script>
 </body>
 </html>
-
