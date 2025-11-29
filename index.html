@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaderboard</title>
+    <title>Interactive Leaderboard with Animated Game</title>
     
     <!-- Firebase SDK -->
     <script type="module">
@@ -906,6 +906,29 @@
             color: #4a6491;
         }
 
+        /* Players Table Modal Styles */
+        .players-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .players-table th, .players-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .players-table th {
+            background-color: #4a6491;
+            color: white;
+            font-weight: 600;
+        }
+
+        .players-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
         @media (max-width: 768px) {
             .auth-section {
                 position: static;
@@ -978,7 +1001,7 @@
                 <!-- Auth content will be populated by JavaScript -->
             </div>
             <h1>Leaderboard</h1>
-            <p class="subtitle">Top performers ranked by scores</p>
+            <p class="subtitle">Top performers ranked by exam scores</p>
             
             <!-- View Report Button (only for linked players) -->
             <div id="viewReportSection" style="display: none; text-align: left; margin-top: 15px;">
@@ -1062,11 +1085,11 @@
                 </div>
                 <div class="stat">
                     <div class="stat-label">Survival Time</div>
-                    <div class="stat-value" id="survivalTime">0s</div>
+                    <div class="stat-value" id="gameSurvivalTime">0s</div>
                 </div>
                 <div class="stat">
-                    <div class="stat-label">Best Time</div>
-                    <div class="stat-value" id="bestTime">0s</div>
+                    <div class="stat-label">Longest Survival</div>
+                    <div class="stat-value" id="gameLongestSurvival">0s</div>
                 </div>
             </div>
             <div class="game-controls">
@@ -1166,13 +1189,13 @@
     <div class="modal" id="reportModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Player Performance Report</h2>
+                <h2>Academic Performance Report</h2>
                 <button class="close-btn" id="closeReportModal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="report-header">
-                    <h3 id="reportPlayerName">Player Report</h3>
-                    <p>Game performance and statistics</p>
+                    <h3 id="reportPlayerName">Student Report</h3>
+                    <p>Academic strengths and weaknesses analysis</p>
                 </div>
                 <div class="radar-chart-container">
                     <canvas id="radarChart"></canvas>
@@ -1180,6 +1203,28 @@
                 <div class="report-stats" id="reportStats">
                     <!-- Stats will be populated here -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Players Table Modal -->
+    <div class="modal" id="playersTableModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Players</h2>
+                <button class="close-btn" id="closePlayersTableModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table class="players-table">
+                    <thead>
+                        <tr>
+                            <th>Player Name</th>
+                        </tr>
+                    </thead>
+                    <tbody id="playersTableBody">
+                        <!-- Player names will be populated here -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -1220,8 +1265,8 @@
         const gameLevel = document.getElementById('gameLevel');
         const healthBar = document.getElementById('healthBar');
         const gameDamage = document.getElementById('gameDamage');
-        const survivalTime = document.getElementById('survivalTime');
-        const bestTime = document.getElementById('bestTime');
+        const gameSurvivalTime = document.getElementById('gameSurvivalTime');
+        const gameLongestSurvival = document.getElementById('gameLongestSurvival');
         const exitGameBtn = document.getElementById('exitGameBtn');
         const gameCanvas = document.getElementById('gameCanvas');
         const ctx = gameCanvas.getContext('2d');
@@ -1236,6 +1281,9 @@
         const joystick = document.getElementById('joystick');
         const joystickHandle = document.getElementById('joystickHandle');
         const attackBtn = document.getElementById('attackBtn');
+        const playersTableModal = document.getElementById('playersTableModal');
+        const playersTableBody = document.getElementById('playersTableBody');
+        const closePlayersTableModal = document.getElementById('closePlayersTableModal');
 
         // Track authentication state
         let isAuthenticated = false;
@@ -1254,10 +1302,10 @@
             damage: 10,
             isPlaying: false,
             survivalTime: 0,
-            bestSurvivalTime: 0,
+            longestSurvivalTime: 0,
             gameStartTime: 0,
             enemySpawnTimer: 0,
-            enemySpawnInterval: 3000, // Start with 3 seconds between spawns
+            enemySpawnInterval: 3000, // Start with 3 seconds between enemy spawns
             player: {
                 x: 400,
                 y: 300,
@@ -1709,33 +1757,51 @@
         function showReport() {
             if (!userBoundPlayer) return;
             
+            const exams = userBoundPlayer.exams || {};
+            const maths = exams.maths || 0;
+            const physics = exams.physics || 0;
+            const chemistry = exams.chemistry || 0;
+            const biology = exams.biology || 0;
+            const english = exams.english || 0;
+            const total = maths + physics + chemistry + biology + english;
+            
             // Update report header
-            reportPlayerName.textContent = `${userBoundPlayer.name}'s Performance Report`;
+            reportPlayerName.textContent = `${userBoundPlayer.name}'s Academic Report`;
             
-            // Get player stats
-            const playerLevel = calculateLevelAndProgress(userBoundPlayer.score).level;
-            const playerScore = userBoundPlayer.score;
-            
-            // Get best survival time from game stats or player data
-            const bestTime = gameState.bestSurvivalTime || 0;
+            // Calculate game stats based on exam scores
+            const speed = maths + total / 10;
+            const health = (physics + chemistry + biology) + total / 10;
+            const attack = english + total / 10;
             
             // Update stats display
             reportStats.innerHTML = `
                 <div class="stat-card">
-                    <h4>Player Level</h4>
-                    <div class="value">${playerLevel}</div>
+                    <h4>Maths Score</h4>
+                    <div class="value">${maths}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Sciences Score</h4>
+                    <div class="value">${physics + chemistry + biology}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>English Score</h4>
+                    <div class="value">${english}</div>
                 </div>
                 <div class="stat-card">
                     <h4>Total Score</h4>
-                    <div class="value">${playerScore}</div>
+                    <div class="value">${total}</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Best Survival Time</h4>
-                    <div class="value">${formatTime(bestTime)}</div>
+                    <h4>Game Speed</h4>
+                    <div class="value">${speed.toFixed(1)}</div>
                 </div>
                 <div class="stat-card">
-                    <h4>Games Played</h4>
-                    <div class="value">${userBoundPlayer.gamesPlayed || 0}</div>
+                    <h4>Game Health</h4>
+                    <div class="value">${health.toFixed(1)}</div>
+                </div>
+                <div class="stat-card">
+                    <h4>Game Attack</h4>
+                    <div class="value">${attack.toFixed(1)}</div>
                 </div>
             `;
             
@@ -1744,21 +1810,15 @@
                 radarChart.destroy();
             }
             
-            // Create radar chart with player stats
+            // Create radar chart
             const ctx = radarChartCanvas.getContext('2d');
             radarChart = new Chart(ctx, {
                 type: 'radar',
                 data: {
-                    labels: ['Level', 'Score', 'Survival', 'Games Played', 'Performance'],
+                    labels: ['Maths', 'Physics', 'Chemistry', 'Biology', 'English'],
                     datasets: [{
-                        label: 'Player Stats',
-                        data: [
-                            Math.min(playerLevel, 10), // Cap at 10 for chart scaling
-                            Math.min(playerScore / 1000, 10), // Scale score
-                            Math.min(bestTime / 60, 10), // Scale survival time (minutes)
-                            Math.min((userBoundPlayer.gamesPlayed || 0) / 5, 10), // Scale games played
-                            7 // Placeholder for performance metric
-                        ],
+                        label: 'Exam Scores',
+                        data: [maths, physics, chemistry, biology, english],
                         backgroundColor: 'rgba(74, 100, 145, 0.2)',
                         borderColor: 'rgba(74, 100, 145, 1)',
                         pointBackgroundColor: 'rgba(74, 100, 145, 1)',
@@ -1774,7 +1834,7 @@
                                 display: true
                             },
                             suggestedMin: 0,
-                            suggestedMax: 10
+                            suggestedMax: 100
                         }
                     },
                     plugins: {
@@ -1784,8 +1844,7 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    const labels = ['Level', 'Score', 'Survival Time (min)', 'Games Played', 'Performance'];
-                                    return `${labels[context.dataIndex]}: ${context.raw}`;
+                                    return `${context.label}: ${context.raw}`;
                                 }
                             }
                         }
@@ -1795,13 +1854,6 @@
             
             // Show the modal
             reportModal.style.display = 'flex';
-        }
-
-        // Format time for display
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         }
 
         // Detect mobile device
@@ -1900,30 +1952,41 @@
                 // Continue even if images fail to load - we have fallback rendering
             }
             
+            // Calculate player stats based on exam scores
+            const exams = userBoundPlayer.exams || {};
+            const maths = exams.maths || 0;
+            const physics = exams.physics || 0;
+            const chemistry = exams.chemistry || 0;
+            const biology = exams.biology || 0;
+            const english = exams.english || 0;
+            const total = maths + physics + chemistry + biology + english;
+            
+            // Calculate game stats based on exam scores
+            const baseSpeed = maths + total / 10;
+            const baseHealth = (physics + chemistry + biology) + total / 10;
+            const baseAttack = english + total / 10;
+            
             // Calculate player level from leaderboard score
             const playerLevel = calculateLevelAndProgress(userBoundPlayer.score).level;
             
-            // Get best survival time from player data if available
-            const bestTime = userBoundPlayer.bestSurvivalTime || 0;
-            
-            // Reset game state with player's stats
+            // Reset game state with player's stats based on their exam scores
             gameState = {
                 score: 0, // Session score only, doesn't affect leaderboard
                 level: playerLevel, // Fixed level based on leaderboard
-                health: 100 + (playerLevel - 1) * 20, // More health for higher levels
-                maxHealth: 100 + (playerLevel - 1) * 20,
-                damage: 10 + (playerLevel - 1) * 2, // More damage for higher levels
+                health: 50 + baseHealth * 2, // Base health scaled by exam scores
+                maxHealth: 50 + baseHealth * 2,
+                damage: 5 + baseAttack, // Base damage scaled by exam scores
                 isPlaying: true,
                 survivalTime: 0,
-                bestSurvivalTime: bestTime,
+                longestSurvivalTime: parseInt(localStorage.getItem('longestSurvivalTime') || '0'),
                 gameStartTime: Date.now(),
                 enemySpawnTimer: 0,
-                enemySpawnInterval: 3000, // Start with 3 seconds between spawns
+                enemySpawnInterval: 3000, // Start with 3 seconds between enemy spawns
                 player: {
                     x: 400,
                     y: 300,
                     size: 32, // Adjusted for 64x64 sprite
-                    speed: 3 + (playerLevel - 1) * 0.2, // Faster for higher levels
+                    speed: 3 + baseSpeed / 10, // Base speed scaled by exam scores
                     color: '#4cd137',
                     lastAttack: 0,
                     attackCooldown: 500 - (playerLevel - 1) * 25, // Faster attacks for higher levels (min 200ms)
@@ -1931,7 +1994,7 @@
                     isMoving: false,
                     animationFrame: 0,
                     lastAnimationUpdate: 0,
-                    attackRange: 80 + (playerLevel - 1) * 5 // Larger attack range for higher levels
+                    attackRange: 80 + baseAttack * 2 // Attack range scaled by exam scores
                 },
                 enemies: [],
                 swordSwings: [],
@@ -1963,7 +2026,7 @@
             requestAnimationFrame(gameLoop);
             
             // Spawn initial enemies
-            spawnEnemies(3 + Math.floor(playerLevel / 2));
+            spawnEnemies(3 + Math.floor(playerLevel / 3));
         }
 
         function updateGameUI() {
@@ -1971,8 +2034,8 @@
             gameLevel.textContent = gameState.level;
             gameDamage.textContent = gameState.damage;
             healthBar.style.width = `${(gameState.health / gameState.maxHealth) * 100}%`;
-            survivalTime.textContent = formatTime(gameState.survivalTime);
-            bestTime.textContent = formatTime(gameState.bestSurvivalTime);
+            gameSurvivalTime.textContent = `${Math.floor(gameState.survivalTime / 1000)}s`;
+            gameLongestSurvival.textContent = `${Math.floor(gameState.longestSurvivalTime / 1000)}s`;
         }
 
         function gameLoop(currentTime) {
@@ -1982,19 +2045,15 @@
             gameState.lastTime = currentTime;
             
             // Update survival time
-            gameState.survivalTime = Math.floor((Date.now() - gameState.gameStartTime) / 1000);
+            gameState.survivalTime = Date.now() - gameState.gameStartTime;
             
             // Update enemy spawn timer and spawn enemies over time
             gameState.enemySpawnTimer += deltaTime;
             if (gameState.enemySpawnTimer >= gameState.enemySpawnInterval) {
                 gameState.enemySpawnTimer = 0;
-                // Increase spawn rate over time (minimum 500ms between spawns)
-                gameState.enemySpawnInterval = Math.max(500, 3000 - (gameState.survivalTime * 50));
-                
-                // Spawn more enemies as time goes on
-                const baseEnemies = 1;
-                const additionalEnemies = Math.floor(gameState.survivalTime / 30); // +1 enemy every 30 seconds
-                spawnEnemies(baseEnemies + additionalEnemies);
+                // Decrease spawn interval over time (increase spawn rate)
+                gameState.enemySpawnInterval = Math.max(500, gameState.enemySpawnInterval * 0.95);
+                spawnEnemies(1 + Math.floor(gameState.survivalTime / 60000)); // Spawn more enemies over time
             }
             
             // Clear canvas
@@ -2129,10 +2188,6 @@
                 }
             }
             
-            // Keep player within bounds
-            gameState.player.x = Math.max(gameState.player.size, Math.min(gameState.player.x, 1600 - gameState.player.size));
-            gameState.player.y = Math.max(gameState.player.size, Math.min(gameState.player.y, 1200 - gameState.player.size));
-            
             // Update player animation
             if (currentTime - gameState.player.lastAnimationUpdate > 100) { // 100ms per frame
                 gameState.player.lastAnimationUpdate = currentTime;
@@ -2198,6 +2253,7 @@
                     currentTime - enemy.lastAttack > enemy.attackCooldown) {
                     gameState.health -= enemy.damage;
                     enemy.lastAttack = currentTime;
+                    updateGameUI(); // Update health bar when taking damage
                     
                     if (gameState.health <= 0) {
                         gameOver();
@@ -2221,12 +2277,13 @@
                         if (enemy.health <= 0) {
                             // Add to session score only, doesn't affect leaderboard
                             gameState.score += enemy.type === 'powered' ? 50 : 10 * gameState.level;
+                            updateGameUI();
                         }
                     }
                 });
             });
             
-            // Remove dead enemies
+            // Remove dead enemies and spawn new ones
             gameState.enemies = gameState.enemies.filter(enemy => enemy.health > 0);
         }
 
@@ -2243,52 +2300,41 @@
 
         function spawnEnemies(count) {
             for (let i = 0; i < count; i++) {
-                // Try to find a good spawn position that's not too close to other enemies
-                let x, y;
+                // Spawn enemy at random position around player with some distance
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 400 + Math.random() * 200;
+                
+                let x = gameState.player.x + Math.cos(angle) * distance;
+                let y = gameState.player.y + Math.sin(angle) * distance;
+                
+                // Check for overlap with existing enemies and adjust position if needed
                 let attempts = 0;
-                const maxAttempts = 10;
+                let tooClose = false;
                 
                 do {
-                    // Spawn enemy at random position around player
-                    const angle = Math.random() * Math.PI * 2;
-                    const distance = 400 + Math.random() * 200;
-                    
-                    x = gameState.player.x + Math.cos(angle) * distance;
-                    y = gameState.player.y + Math.sin(angle) * distance;
-                    
-                    // Keep within world bounds
-                    x = Math.max(50, Math.min(x, 1550));
-                    y = Math.max(50, Math.min(y, 1150));
-                    
-                    attempts++;
-                    
-                    // Check if this position is too close to other enemies (but allow some overlap)
-                    let tooClose = false;
+                    tooClose = false;
                     for (const enemy of gameState.enemies) {
                         const dx = x - enemy.x;
                         const dy = y - enemy.y;
                         const distanceToEnemy = Math.sqrt(dx * dx + dy * dy);
                         
-                        // Allow a little overlap (40 pixels), but not too much
+                        // Allow a little overlap (20 pixels) but not too much
                         if (distanceToEnemy < 40) {
                             tooClose = true;
+                            // Move away from the overlapping enemy
+                            x += (dx / distanceToEnemy) * 50;
+                            y += (dy / distanceToEnemy) * 50;
                             break;
                         }
                     }
-                    
-                    // If not too close or we've tried too many times, use this position
-                    if (!tooClose || attempts >= maxAttempts) {
-                        break;
-                    }
-                } while (true);
+                    attempts++;
+                } while (tooClose && attempts < 10); // Limit attempts to prevent infinite loop
                 
-                // Enemy level scales with player level and survival time
-                const baseLevel = Math.max(1, Math.floor(gameState.level / 2));
-                const timeBonus = Math.floor(gameState.survivalTime / 60); // +1 level every minute
-                const enemyLevel = baseLevel + timeBonus + Math.floor(Math.random() * 3);
+                // Enemy level scales with player level and time
+                const enemyLevel = Math.floor(Math.random() * Math.max(1, Math.floor(gameState.level / 2))) + 1;
                 
                 // Determine enemy type (regular or powered)
-                const isPowered = Math.random() < 0.2 + (gameState.level * 0.02) + (gameState.survivalTime * 0.001); // More likely at higher levels and over time
+                const isPowered = Math.random() < 0.2 + (gameState.level * 0.02) + (gameState.survivalTime / 600000); // More likely at higher levels and over time
                 
                 // Create a unique ID for this enemy
                 const enemyId = Date.now() + Math.random();
@@ -2511,20 +2557,10 @@
         function gameOver() {
             gameState.isPlaying = false;
             
-            // Update best survival time if current time is better
-            if (gameState.survivalTime > gameState.bestSurvivalTime) {
-                gameState.bestSurvivalTime = gameState.survivalTime;
-                
-                // Save best time to player data if user is bound
-                if (userBoundPlayer) {
-                    const playerDoc = window.firebaseDoc(db, 'players', userBoundPlayer.id);
-                    window.firebaseUpdateDoc(playerDoc, {
-                        bestSurvivalTime: gameState.bestSurvivalTime,
-                        gamesPlayed: (userBoundPlayer.gamesPlayed || 0) + 1
-                    }).catch(error => {
-                        console.error('Error saving best time:', error);
-                    });
-                }
+            // Update longest survival time if current is longer
+            if (gameState.survivalTime > gameState.longestSurvivalTime) {
+                gameState.longestSurvivalTime = gameState.survivalTime;
+                localStorage.setItem('longestSurvivalTime', gameState.longestSurvivalTime.toString());
             }
             
             // Draw game over screen
@@ -2537,9 +2573,10 @@
             ctx.fillText('GAME OVER', gameCanvas.width / 2, gameCanvas.height / 2 - 50);
             
             ctx.font = '24px Arial';
-            ctx.fillText(`Survival Time: ${formatTime(gameState.survivalTime)}`, gameCanvas.width / 2, gameCanvas.height / 2);
-            ctx.fillText(`Best Time: ${formatTime(gameState.bestSurvivalTime)}`, gameCanvas.width / 2, gameCanvas.height / 2 + 40);
-            ctx.fillText(`Session Score: ${gameState.score}`, gameCanvas.width / 2, gameCanvas.height / 2 + 80);
+            ctx.fillText(`Session Score: ${gameState.score}`, gameCanvas.width / 2, gameCanvas.height / 2);
+            ctx.fillText(`Your Level: ${gameState.level}`, gameCanvas.width / 2, gameCanvas.height / 2 + 40);
+            ctx.fillText(`Survival Time: ${Math.floor(gameState.survivalTime / 1000)}s`, gameCanvas.width / 2, gameCanvas.height / 2 + 80);
+            ctx.fillText(`Longest Survival: ${Math.floor(gameState.longestSurvivalTime / 1000)}s`, gameCanvas.width / 2, gameCanvas.height / 2 + 120);
             
             // Note: We're not saving the score to the leaderboard anymore
         }
@@ -2547,6 +2584,12 @@
         function exitGame() {
             gameState.isPlaying = false;
             gameContainer.style.display = 'none';
+            
+            // Update longest survival time if current is longer
+            if (gameState.survivalTime > gameState.longestSurvivalTime) {
+                gameState.longestSurvivalTime = gameState.survivalTime;
+                localStorage.setItem('longestSurvivalTime', gameState.longestSurvivalTime.toString());
+            }
             
             // Note: We're not saving the score to the leaderboard anymore
         }
@@ -2627,8 +2670,7 @@
                         name: data.name,
                         score: data.score,
                         googleAccount: data.googleAccount || null,
-                        bestSurvivalTime: data.bestSurvivalTime || 0,
-                        gamesPlayed: data.gamesPlayed || 0
+                        exams: data.exams || null
                     });
                 });
                 
@@ -2749,29 +2791,34 @@
                             ${accountInfo}
                         </div>
                     </div>
-                    <div class="player-actions">
-                        <button class="btn btn-primary edit-player" data-id="${player.id}">Edit</button>
-                        <button class="btn btn-danger delete-player" data-id="${player.id}">Delete</button>
-                    </div>
                 `;
                 
                 playerList.appendChild(playerItem);
             });
+        }
+
+        // Populate players table modal
+        function populatePlayersTable(data) {
+            playersTableBody.innerHTML = '';
             
-            // Add event listeners to edit and delete buttons
-            document.querySelectorAll('.edit-player').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const playerId = e.target.getAttribute('data-id');
-                    editPlayer(playerId);
-                });
-            });
+            if (data.length === 0) {
+                playersTableBody.innerHTML = '<tr><td colspan="1" class="loading">No players found</td></tr>';
+                return;
+            }
             
-            document.querySelectorAll('.delete-player').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const playerId = e.target.getAttribute('data-id');
-                    deletePlayer(playerId);
-                });
+            data.forEach((player) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${player.name}</td>
+                `;
+                playersTableBody.appendChild(row);
             });
+        }
+
+        // Open players table modal
+        function openPlayersTableModal() {
+            populatePlayersTable(currentLeaderboardData);
+            playersTableModal.style.display = 'flex';
         }
 
         // Filter the leaderboard based on search input
@@ -2918,88 +2965,13 @@
             }
         }
 
-        // Edit a player
-        async function editPlayer(playerId) {
-            if (!isAuthenticated) {
-                alert('Please verify your password first');
-                return;
-            }
-            
-            // Get current player data
-            const playerDoc = window.firebaseDoc(db, 'players', playerId);
-            const playerSnapshot = await window.firebaseGetDocs(window.firebaseCollection(db, 'players'));
-            let playerData = null;
-            
-            playerSnapshot.forEach((doc) => {
-                if (doc.id === playerId) {
-                    playerData = doc.data();
-                }
-            });
-            
-            if (!playerData) {
-                showStatus('Player not found', false);
-                return;
-            }
-            
-            const newName = prompt('Enter new name:', playerData.name);
-            if (newName === null) return; // User cancelled
-            
-            const newScore = parseInt(prompt('Enter new score:', playerData.score));
-            if (isNaN(newScore) || newScore < 0 || newScore > 100000) {
-                showStatus('Please enter a valid score between 0 and 100000', false);
-                return;
-            }
-            
-            try {
-                console.log('Updating player:', playerId, newName, newScore);
-                
-                // Update the player in Firestore
-                await window.firebaseSetDoc(playerDoc, {
-                    name: newName.trim(),
-                    score: newScore,
-                    updatedAt: new Date()
-                }, { merge: true });
-                
-                // Success message
-                showStatus('Player updated successfully!');
-            } catch (error) {
-                console.error('Error updating player:', error);
-                showStatus('Error updating player: ' + error.message, false);
-            }
-        }
-
-        // Delete a player
-        async function deletePlayer(playerId) {
-            if (!isAuthenticated) {
-                alert('Please verify your password first');
-                return;
-            }
-            
-            if (!confirm('Are you sure you want to delete this player?')) {
-                return;
-            }
-            
-            try {
-                console.log('Deleting player:', playerId);
-                
-                // Delete the player from Firestore
-                await window.firebaseDeleteDoc(window.firebaseDoc(db, 'players', playerId));
-                
-                // Success message
-                showStatus('Player deleted successfully!');
-            } catch (error) {
-                console.error('Error deleting player:', error);
-                showStatus('Error deleting player: ' + error.message, false);
-            }
-        }
-
         // Set up event listeners
         function setupEventListeners() {
             // Search functionality
             searchInput.addEventListener('input', filterLeaderboard);
             
             // Modal functionality
-            changeLink.addEventListener('click', openEditModal);
+            changeLink.addEventListener('click', openPlayersTableModal);
             closeModal.addEventListener('click', closeEditModal);
             cancelBtn.addEventListener('click', closeEditModal);
             saveBtn.addEventListener('click', closeEditModal);
@@ -3015,6 +2987,11 @@
             viewReportBtn.addEventListener('click', showReport);
             closeReportModal.addEventListener('click', () => {
                 reportModal.style.display = 'none';
+            });
+            
+            // Players table modal functionality
+            closePlayersTableModal.addEventListener('click', () => {
+                playersTableModal.style.display = 'none';
             });
             
             // Keyboard controls
@@ -3035,6 +3012,9 @@
                 }
                 if (e.target === reportModal) {
                     reportModal.style.display = 'none';
+                }
+                if (e.target === playersTableModal) {
+                    playersTableModal.style.display = 'none';
                 }
             });
         }
